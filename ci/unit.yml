@@ -1,0 +1,18 @@
+---
+
+platform: linux
+
+image_resource:
+  type: docker-image
+  source:
+    repository: golang
+    tag: 1.23.0-bullseye
+
+inputs:
+  - name: dis-authentication-stub
+
+caches:
+  - path: go/
+
+run:
+  path: dis-authentication-stub/ci/scripts/unit.sh
