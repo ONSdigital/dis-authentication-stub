@@ -32,6 +32,10 @@ debug: ## Used to run code locally in debug mode
 	go build -tags 'debug' $(LDFLAGS) -o $(BINPATH)/dis-authentication-stub
 	HUMAN_LOG=1 DEBUG=1 $(BINPATH)/dis-authentication-stub
 
+.PHONY: debug-run
+debug-run:
+	HUMAN_LOG=1 DEBUG=1 go run -race -tags 'debug' $(LDFLAGS) main.go
+
 .PHONY: delimiter-%
 delimiter-%:
 	@echo '===================${GREEN} $* ${RESET}==================='
