@@ -6,33 +6,17 @@ info:
   license:
     name: "Open Government Licence v3.0"
     url: "http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
-basePath: "/v1"
+host: localhost:29500
+basePath: "/"
 schemes:
   - http
 tags:
-  - name: "hello"
-  - name: "private"
+  - name: "public"
 paths:
-  /hello:
-    get:
-      tags:
-        - hello
-      summary: Example hello world endpoint
-      description: Returns an example payload.
-      produces:
-        - application/json
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: "#/definitions/HelloResponse"
-        500:
-          $ref: '#/responses/InternalError'
-
   /health:
     get:
       tags:
-        - private
+        - public
       summary: "Returns API's health status"
       description: "Returns health status of the API and checks on dependent services"
       produces:
@@ -46,19 +30,222 @@ paths:
           description: "Services warming up or degraded (at least one check in WARNING or CRITICAL status)"
         500:
           $ref: "#/responses/InternalError"
-
-responses:
-  InternalError:
-    description: "Failed to process the request due to an internal error"
-
+  /florence/login:
+    get:
+      tags:
+        - public
+      summary: "Displays login form with a list of users"
+      produces:
+        - text/html
+      parameters:
+        - in: query
+          name: redirect
+          type: string
+          default: "/florence/collections"
+          description: "The URL to redirect after a successful login"
+      responses:
+        200:
+          description: "HTML form with list of users"
+        400:
+          $ref: '#/responses/InvalidRequestError'
+        500:
+          $ref: '#/responses/InternalError'
+    post:
+      tags:
+        - public
+      summary: "Logs in a user"
+      description: "return a redirect to the value of the redirect query param with the access_token, id_token and refresh_token"
+      consumes: 
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: redirect
+          type: string
+          default: "/florence/collections"
+          description: "The URL to redirect after a successful login"
+        - in: header
+          type: string
+          name: access_token
+          description: "The user's access token"
+        - in: header
+          type: string
+          name: id_token
+          description: "The user's id token"
+        - in: header
+          type: string
+          name: refresh_token
+          description: "The user's refresh token"
+      responses:
+        303:
+          description: "Redirect to the provided 'redirect' URL"
+          headers:
+            access_token:
+              type: string
+              description: "Access token"
+            id_token:
+              type: string
+              description: "ID token"
+            refresh_token:
+              type: string
+              description: "Refresh token"
+        400:
+          $ref: '#/responses/BadRequest'
+        401:
+          $ref: '#/responses/UnauthorizedAccess'
+        500:
+          $ref: '#/responses/InternalError'
+  /tokens/self:
+    delete:
+      tags:
+        - Tokens
+      summary: "Signs out a user, invalidating their access tokens"
+      consumes:
+        - application/json
+      parameters:
+        - in: header
+          type: string
+          name: Authorization
+          description: "The users access token as bearer token"
+      responses:
+        204:
+          description: "No Content - Successful sign out"
+        400:
+          description: "Invalid request. Missing, malformed or invalid access token provided"
+        500:
+          $ref: '#/responses/InternalError'
+    put:
+      tags:
+        - Tokens
+      summary: "Refreshes a users access token using the refresh and ID tokens"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          type: string
+          name: id_token
+          description: "The user's id token"
+        - in: header
+          type: string
+          name: refresh_token
+          description: "The user's refresh token"
+      responses:
+        201:
+          description: "Created"
+          headers:
+            Authorization:
+              type: string
+              description: "Auth token"
+            id_token:
+              type: string
+              description: "ID token"
+            refresh_token:
+              type: string
+              description: "Refresh token"
+          schema:
+            $ref: '#/definitions/ExpirationTime'
+        400:
+          description: "Invalid request. Missing or malformed ID token or missing Refresh token provided"
+        403:
+          description: "Forbidden. Expired or invalid refresh token"
+        500:
+          $ref: '#/responses/InternalError'
+  /jwt-keys:
+    get:
+      tags:
+        - JWKS
+      summary: "JSON Web Key Set"
+      description: "Returns public JWT signing keys"
+      produces:
+        - application/json
+      responses:
+        200:
+          description: "Key set retrieved, processed and returned in response body"
+          schema:
+            $ref: '#/definitions/JWKSResponse'
+        404:
+          description: "Key set not found or error processing it"
+        500:
+          description: "Internal error occurred"
+          schema:
+            $ref: '#/definitions/JWKSResponseError'
+  /identity:
+    get:
+      tags:
+        - public
+      summary: "Check the bearer token exists within config"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          type: string
+          name: Authorization
+          description: "The users access token as bearer token"
+      responses:
+        200:
+          description: "Service token from header matches one in the config"
+        403:
+          description: "Service token from header does not match one in the config"
+        500:
+          description: "Internal error occurred"
+          schema:
+            $ref: '#/definitions/JWKSResponseError'
+  /api/*:
+    get:
+      summary: "Proxy GET requests"
+      description: "Proxies GET requests under the `/api/*` path and sets the `Authorization` header to the value of the `access_token` cookie"
+      consumes:
+        - application/json
+      parameters:
+        - in: header
+          type: string
+          name: Authorization
+          description: "The Authorization header that is set based on the access_token cookie"
+        - in: header
+          type: string
+          name: access_token
+          description: "The user's access token"
+      responses:
+        200:
+          description: "Request was successfully proxied"
+        400:
+          $ref: '#/responses/BadRequest'
+        500:
+          $ref: '#/responses/InternalError'
 definitions:
-  HelloResponse:
+  ExpirationTime:
     type: object
     properties:
       message:
         type: string
-        description: "Message returned by hello world endpoint"
-        example: "Hello, world!"
+        description: "Expiration Time, UTC ISO 8601"
+        example: "YYYY-MM-DD hh-mm-ssZ"
+  JWKSResponse:
+    properties:
+      2a8vXmIK67ZZ3hFZ=:
+        type: string
+        example: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApU1DqxJalEmlznkrM+U4aSBMw9u5axcIqNeUq8+ZHo98uKy8Xy5zCOXfWx6KafOPJhbOZInFaSh9UMaluSSw11l/PR4KrGBFzJODQ+RMq6bHW6FlwwHSkMTSfQ0hwzO7y91BiZFmJnaUECf52H3QBApGT4TT060ri5zt1ygpliRwjLLlHW1XX0epzZH3ogrikn4i65e8w6uUcsGBhQvQQqiHvEpcgCQAB"
+      GRBevIroJzPBvaGa=:
+        type: string
+        example: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtvDfudfY9n+8sFJmHGFfgbKqKf8iiEcbvRXNMEi9qd2NGAekhdNJKdeW3sMSwR+sb4Ly6IypowCE2eueYk/GatzYyyolWny/Krdp0EWPT/PnK8Iq1FTIuHxFb08B8iLnH/2nKqgOjVvwEU4eSBh0YHKti2v77a+a4bnx6aOC2YkF2AyIRmbXAHaq4Js9u33X8gGMXZcVsxcSpG8Py/NJ3s+PLKebQFQAB"
+  JWKSResponseError:
+    description: "A list of any errors"
+    type: object
+    properties:
+      errors:
+        type: array
+        items:
+          type: object
+          properties:
+            code: 
+              example: "JWKSParseError"
+            description:
+              example: "error encountered when parsing the json web key set (jwks)"
   Health:
     type: object
     properties:
@@ -128,3 +315,12 @@ definitions:
         type: string
         description: "The last failed health check date and time of the external service"
         example: "2019-09-22T11:48:51.0000001Z"
+responses:
+  InternalError:
+    description: "Failed to process the request due to an internal error"
+  InvalidRequestError:
+    description: "Failed to process the request due to invalid request"
+  BadRequest:
+    description: "Server would not process the request due to something the server considered to be a client error"
+  UnauthorizedAccess:
+    description: "Request was not successful because it lacks valid authentication credentials for the requested resource"
