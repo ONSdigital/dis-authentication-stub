@@ -13,7 +13,6 @@ import (
 )
 
 func LoadUsers(ctx context.Context, filename string) ([]models.User, error) {
-	fmt.Println("In LoadUsers...")
 	usersJsonFile, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(ctx, fmt.Sprintf("could not open file %s", filename), err)
