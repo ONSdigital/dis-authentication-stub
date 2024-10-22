@@ -7,6 +7,7 @@ import (
 
 	"github.com/ONSdigital/dis-authentication-stub/api"
 	"github.com/ONSdigital/dis-authentication-stub/config"
+	"github.com/ONSdigital/dis-authentication-stub/handlers"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -73,7 +74,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	//@Param redirect query string false "Redirect URL"
 	//@Success 200 {string} string "HTML form"
 	//@Router /florence/login [get]
-	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(FlorenceLoginHandler)
+	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx))
 	hc.Start(ctx)
 
 	// Run the http server in a new go-routine

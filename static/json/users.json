@@ -1,0 +1,30 @@
+[
+  {
+    "email": "admin@ons.gov.uk",
+    "username": "uuid",
+    "forename": "John",
+    "surname": "Smith",
+    "groups": ["role-admin"]
+  },
+  {
+    "email": "publisher@ons.gov.uk",
+    "username": "uuid",
+    "forename": "Robert",
+    "surname": "Bob",
+    "groups": ["role-publisher"]
+  },
+  {
+    "email": "viewer1@ons.gov.uk",
+    "username": "uuid",
+    "forename": "Julia",
+    "surname": "Babbage",
+    "groups": []
+  },
+  {
+    "email": "viewer2@ons.gov.uk",
+    "username": "uuid",
+    "forename": "Anthony",
+    "surname": "Williams",
+    "groups": []
+  }
+]
