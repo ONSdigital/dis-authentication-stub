@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/ONSdigital/dis-authentication-stub/api"
@@ -60,20 +59,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.StrictSlash(true).Path("/health").HandlerFunc(hc.Handler)
 
-	// Healthcheck endpoint
-	//@Summary Healthcheck
-	//@Description Returns the status of the service.
-	//@Produce json
-	//@Success 200 {string} string "OK"
-	//@Router /health [get]
 	r.StrictSlash(true).Path("/health").Methods(http.MethodGet).HandlerFunc(hc.Handler)
 
-	//Florence Login
-	//@Summary Florence login page
-	//@Description Displays an HTML form for selecting users.
-	//@Param redirect query string false "Redirect URL"
-	//@Success 200 {string} string "HTML form"
-	//@Router /florence/login [get]
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx))
 	hc.Start(ctx)
 
@@ -92,11 +79,6 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		ServiceList: serviceList,
 		Server:      s,
 	}, nil
-}
-
-// Handler responds to an http request for the current health status
-func FlorenceLoginHandler(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "Hello Florence login handler....")
 }
 
 // Close gracefully shuts the service down in the required order, with timeout
