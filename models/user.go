@@ -7,3 +7,8 @@ type User struct {
 	Surname  string   `json:"surname"`
 	Groups   []string `json:"groups"` // array of group IDs e.g. ["role-admin"]
 }
+
+type TemplateData struct {
+	Users       []User
+	RedirectURL string
+}
