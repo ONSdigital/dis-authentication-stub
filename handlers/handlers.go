@@ -72,20 +72,14 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 		if redirect == "" {
 			redirect = req.URL.Query().Get("redirect")
 		}
-		// Define some hardcoded values for testing but get this from the json file
-		userUUID := map[string]string{
-			"admin@ons.gov.uk":     "uuid-admin",
-			"publisher@ons.gov.uk": "uuid-publisher",
-			"viewer1@ons.gov.uk":   "uuid-viewer1",
-			"viewer2@ons.gov.uk":   "uuid-viewer2",
-		}
-
-		user := username
-		userID, exists := userUUID[user]
-		if !exists {
+		// Verify the user by email
+		user, err := utils.VerifyUser(ctx, "static/json/users.json", username)
+		if err != nil {
 			http.Error(w, "Invalid user", http.StatusBadRequest)
 			return
 		}
+
+		userID := user.Username
 
 		//generate the tokens
 		access_token := "Bearer " + generateJWT(userID, username, "access")
