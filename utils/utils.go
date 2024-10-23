@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -34,4 +35,24 @@ func LoadUsers(ctx context.Context, filename string) ([]models.User, error) {
 	}
 
 	return users, nil
+}
+
+// VerifyUser checks if the provided email exists in the users.json file
+func VerifyUser(ctx context.Context, filename, email string) (*models.User, error) {
+	// Load users from the file
+	users, err := LoadUsers(ctx, filename)
+	if err != nil {
+		log.Error(ctx, "failed to load users from file", err)
+		return nil, err
+	}
+
+	// Find user with the given email
+	for _, user := range users {
+		if user.Email == email {
+			return &user, nil // User found
+		}
+	}
+
+	// If no user was found
+	return nil, errors.New("user not found")
 }
