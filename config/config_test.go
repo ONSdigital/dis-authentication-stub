@@ -23,14 +23,17 @@ func TestConfig(t *testing.T) {
 				configuration, err = Get() // This Get() is only called once, when inside this function
 				So(err, ShouldBeNil)
 				So(configuration, ShouldResemble, &Config{
-					BindAddr:                   "localhost:29500",
-					GracefulShutdownTimeout:    5 * time.Second,
-					HealthCheckInterval:        30 * time.Second,
-					HealthCheckCriticalTimeout: 90 * time.Second,
-					OTBatchTimeout:             5 * time.Second,
-					OTExporterOTLPEndpoint:     "localhost:4317",
-					OTServiceName:              "dis-authentication-stub",
-					OtelEnabled:                false,
+					BindAddr:                     "localhost:29500",
+					GracefulShutdownTimeout:      5 * time.Second,
+					HealthCheckInterval:          30 * time.Second,
+					HealthCheckCriticalTimeout:   90 * time.Second,
+					OTBatchTimeout:               5 * time.Second,
+					OTExporterOTLPEndpoint:       "localhost:4317",
+					OTServiceName:                "dis-authentication-stub",
+					OtelEnabled:                  false,
+					AccessTokenValidityDuration:  15 * time.Minute,
+					IDTokenValidityDuration:      15 * time.Minute,
+					RefreshTokenValidityDuration: 12 * time.Hour,
 				})
 			})
 
