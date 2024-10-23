@@ -9,7 +9,6 @@ import (
 
 	"github.com/ONSdigital/dis-authentication-stub/models"
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/google/uuid"
 )
 
 func LoadUsers(ctx context.Context, filename string) ([]models.User, error) {
@@ -32,10 +31,6 @@ func LoadUsers(ctx context.Context, filename string) ([]models.User, error) {
 	if err != nil {
 		log.Fatal(ctx, fmt.Sprintf("could not unmarshal JSON from file %s", filename), err)
 		return nil, err
-	}
-
-	for index := range users {
-		users[index].Username = uuid.New().String()
 	}
 
 	return users, nil

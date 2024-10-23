@@ -1,28 +1,28 @@
 [
   {
     "email": "admin@ons.gov.uk",
-    "username": "uuid",
+    "username": "c6a10dbb-38fb-4835-b181-ea2ea85da355",
     "forename": "John",
     "surname": "Smith",
     "groups": ["role-admin"]
   },
   {
     "email": "publisher@ons.gov.uk",
-    "username": "uuid",
+    "username": "13fc0599-9330-4f7a-bb3a-b1ce9e5b4c96",
     "forename": "Robert",
     "surname": "Bob",
     "groups": ["role-publisher"]
   },
   {
     "email": "viewer1@ons.gov.uk",
-    "username": "uuid",
+    "username": "56252b3d-b87b-433a-9d76-9a16fb25c54e",
     "forename": "Julia",
     "surname": "Babbage",
     "groups": []
   },
   {
     "email": "viewer2@ons.gov.uk",
-    "username": "uuid",
+    "username": "32369408-cf90-4342-b7c8-0470bc4b7cc6",
     "forename": "Anthony",
     "surname": "Williams",
     "groups": []
