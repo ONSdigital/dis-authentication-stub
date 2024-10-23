@@ -62,6 +62,9 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	r.StrictSlash(true).Path("/health").Methods(http.MethodGet).HandlerFunc(hc.Handler)
 
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx))
+
+	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx))
+
 	hc.Start(ctx)
 
 	// Run the http server in a new go-routine
