@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/models"
 	"github.com/ONSdigital/dis-authentication-stub/utils"
 
@@ -79,11 +80,12 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 			return
 		}
 
-		userID := user.Username
+		//userID := user.Username
+		cfg, _ := config.Get()
 
 		//generate the tokens
-		access_token := "Bearer " + generateJWT(userID, username, "access")
-		id_token := generateJWT(userID, username, "id")
+		access_token := "Bearer " + generateJWT(*user, username, "access", *cfg)
+		id_token := generateJWT(*user, username, "id", *cfg)
 
 		refresh_token := "testrefreshtokennn" // Random opaque token string
 
@@ -91,7 +93,7 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 		models.RefreshTokenStore[refresh_token] = models.RefreshTokenInfo{
 			Username:      username,
 			AuthTime:      time.Now(),
-			SessionExpiry: time.Now().Add(12 * time.Hour), // Use your config for duration
+			SessionExpiry: time.Now().Add(cfg.RefreshTokenValidityDuration), // Use your config for duration
 		}
 
 		//add to header
@@ -99,21 +101,14 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 		http.SetCookie(w, &http.Cookie{Name: "id_token", Value: id_token, Path: "/"})
 		http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: refresh_token, Path: "/"})
 
-		fmt.Fprintf(w, "Selected Username: %s \n", username)
-		fmt.Fprintf(w, "redirect %s \n", redirect)
-		fmt.Fprintf(w, "access_token: %s \n", access_token)
-		fmt.Fprintf(w, "id_token: %s \n", id_token)
-		fmt.Fprintf(w, "refresh_token: %s \n", refresh_token)
-		fmt.Fprintf(w, "RefreshTokenStore: %s \n", models.RefreshTokenStore)
-
 		http.Redirect(w, req, redirect, http.StatusSeeOther)
 	}
 }
 
-func generateJWT(userID string, username string, tokenType string) string {
+func generateJWT(user models.User, username string, tokenType string, cfg config.Config) string {
 
 	//RS256
-	privateKeyData, err := ioutil.ReadFile("static/keys/private.key")
+	privateKeyData, err := os.ReadFile("static/keys/private.key")
 	if err != nil {
 		return err.Error()
 	}
@@ -126,22 +121,24 @@ func generateJWT(userID string, username string, tokenType string) string {
 
 	// Define claims based on the token type (access or id) //retrieve them from users.json
 	claims := jwt.MapClaims{
-		"sub":            userID,                                  // subject (user ID)
-		"cognito:groups": []string{"group1"},                      // Example group
-		"auth_time":      time.Now().Unix(),                       // Auth time
-		"exp":            time.Now().Add(15 * time.Minute).Unix(), // Expiry time
-		"iat":            time.Now().Unix(),                       // Issued at
+		"sub":            user.Username,      // subject (username)
+		"cognito:groups": []string{"group1"}, // Example group
+		"auth_time":      time.Now().Unix(),  // Auth time
+		"iat":            time.Now().Unix(),  // Issued at
 	}
 
 	if tokenType == "access" {
 		// Additional claims for the access token
-		claims["username"] = username
+		claims["username"] = user.Username
+		claims["exp"] = time.Now().Add(cfg.AccessTokenValidityDuration).Unix()
 	} else if tokenType == "id" {
 		// Additional claims for the ID token
-		claims["cognito:username"] = username
-		claims["given_name"] = "TestGivenName"   // Hardcoded for now
-		claims["family_name"] = "TestFamilyName" // Hardcoded for now
-		claims["email"] = username               // Using username as email
+		claims["cognito:username"] = user.Username
+		claims["given_name"] = user.Forename
+		claims["family_name"] = user.Surname
+		claims["email"] = user.Username
+		claims["exp"] = time.Now().Add(cfg.IDTokenValidityDuration).Unix()
+
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
