@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Page</title>
+</head>
+<body>
+<h1>Please select a user to login</h1>
+<form action="/florence/login" method="POST">
+    {{range .Users}}
+    <input type="radio" id="user{{.Username}}" name="username" value="{{.Email}}">
+    <label for="user{{.Username}}">{{.Forename}} {{.Surname}} ({{.Email}})</label><br>
+    {{end}}
+    <br>
+    <input type="hidden" id="redirect" name="redirect" value="{{.RedirectURL}}" />
+    <input type="submit" value="Submit">
+</form>
+</body>
+</html>
