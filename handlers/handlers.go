@@ -223,3 +223,52 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
+
+// TokenSelfPutHandler - refreshes the tokens based on refresh_token validity
+func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		// Extract refresh_token cookie from the request
+		refreshCookie, err := req.Cookie("refresh_token")
+		if err != nil {
+			http.Error(w, "Refresh token not present", http.StatusBadRequest)
+			return
+		}
+		refreshTokenValue := refreshCookie.Value
+
+		// Check if the refresh token exists and hasn't expired
+		tokenInfo, exists := models.RefreshTokenStore[refreshTokenValue]
+		if !exists || tokenInfo.SessionExpiry.Before(time.Now()) {
+			http.Error(w, "Invalid or expired refresh token", http.StatusForbidden)
+			return
+		}
+
+		// Retrieve the user details from the in-memory map using the username
+		user := models.User{
+			Username: tokenInfo.Username,
+		}
+
+		cfg, _ := config.Get()
+
+		// Generate new tokens
+		newAccessToken := generateJWT(user, tokenInfo.Username, "access", *cfg)
+		newIDToken := generateJWT(user, tokenInfo.Username, "id", *cfg)
+
+		// Set new tokens as cookies
+		http.SetCookie(w, &http.Cookie{
+			Name:     "access_token",
+			Value:    newAccessToken,
+			Path:     "/",
+			HttpOnly: true,
+		})
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "id_token",
+			Value:    newIDToken,
+			Path:     "/",
+			HttpOnly: true,
+		})
+
+		// Respond with a 200 OK status
+		w.WriteHeader(http.StatusOK)
+	}
+}
