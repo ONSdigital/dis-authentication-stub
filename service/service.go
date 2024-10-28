@@ -65,6 +65,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx))
 
+	r.Path("/tokens/self").Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx))
+
 	r.Path("/tokens/self").Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
 
 	hc.Start(ctx)

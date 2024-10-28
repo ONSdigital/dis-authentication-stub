@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ONSdigital/dis-authentication-stub/config"
@@ -153,65 +154,74 @@ func generateJWT(user models.User, username string, tokenType string, cfg config
 	return tokenString
 }
 
+func TokenSelfGetHandler(ctx context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		// Load the HTML template
+		tmplPath := filepath.Join("templates", "delete.token.html")
+		tmpl, err := template.ParseFiles(tmplPath)
+		if err != nil {
+			http.Error(w, "Failed to load template", http.StatusInternalServerError)
+			return
+		}
+
+		// Execute the template and write to response
+		w.Header().Set("Content-Type", "text/html")
+		if err := tmpl.Execute(w, nil); err != nil {
+			http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		}
+	}
+}
+
 func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, "Hello delete handler....")
-
-		// Extract refresh token from cookies
+		// retrieve the refresh token from cookies
 		refreshCookie, err := req.Cookie("refresh_token")
 		if err != nil {
 			http.Error(w, "Refresh token not found", http.StatusUnauthorized)
 			return
 		}
-		fmt.Fprintf(w, "refreshCookie %s \n", refreshCookie)
 
-		// Check if the refresh token exists in the models' in-memory map
+		// Check if the refresh token exists in the in-memory store
 		refreshToken := refreshCookie.Value
 		if _, exists := models.RefreshTokenStore[refreshToken]; !exists {
 			http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
 			return
 		}
-		fmt.Fprintf(w, "refreshToken %s \n", refreshToken)
-		fmt.Fprintf(w, "models.RefreshTokenStore before deletion %s \n", models.RefreshTokenStore)
 
+		// Remove the session entry from the in-memory store
 		delete(models.RefreshTokenStore, refreshToken)
 
-		expiredCookie := time.Now().Add(-1 * time.Hour)
-		fmt.Fprintf(w, "expiredCookie %s \n", expiredCookie)
-		fmt.Fprintf(w, "models.RefreshTokenStore after deletion %s \n", models.RefreshTokenStore)
+		// Expire cookies by removing them entirely
+		expiredTime := time.Now().Add(-1 * time.Hour)
 
-		http.SetCookie(w, &http.Cookie{Name: "access_token", Value: "", Path: "/"})
-		http.SetCookie(w, &http.Cookie{Name: "id_token", Value: "", Path: "/"})
-		http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: "", Path: "/"})
+		http.SetCookie(w, &http.Cookie{
+			Name:     "access_token",
+			Value:    "",
+			Path:     "/",
+			Expires:  expiredTime,
+			MaxAge:   -1,
+			HttpOnly: true,
+		})
 
-		// // Expire access_token cookie
-		// http.SetCookie(w, &http.Cookie{
-		// 	Name:     "access_token",
-		// 	Value:    "",
-		// 	Path:     "/",
-		// 	Expires:  expiredCookie,
-		// 	HttpOnly: true,
-		// })
+		http.SetCookie(w, &http.Cookie{
+			Name:     "id_token",
+			Value:    "",
+			Path:     "/",
+			Expires:  expiredTime,
+			MaxAge:   -1,
+			HttpOnly: true,
+		})
 
-		// // Expire id_token cookie
-		// http.SetCookie(w, &http.Cookie{
-		// 	Name:     "id_token",
-		// 	Value:    "",
-		// 	Path:     "/",
-		// 	Expires:  expiredCookie,
-		// 	HttpOnly: true,
-		// })
+		http.SetCookie(w, &http.Cookie{
+			Name:     "refresh_token",
+			Value:    "",
+			Path:     "/",
+			Expires:  expiredTime,
+			MaxAge:   -1,
+			HttpOnly: true,
+		})
 
-		// // Expire refresh_token cookie
-		// http.SetCookie(w, &http.Cookie{
-		// 	Name:     "refresh_token",
-		// 	Value:    "",
-		// 	Path:     "/",
-		// 	Expires:  expiredCookie,
-		// 	HttpOnly: true,
-		// })
-
-		// Respond with a success message
+		// Respond with no content
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
