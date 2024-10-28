@@ -224,10 +224,9 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 	}
 }
 
-// TokenSelfPutHandler - refreshes the tokens based on refresh_token validity
 func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		// Extract refresh_token cookie from the request
+		// retrieve refresh_token cookie from the request
 		refreshCookie, err := req.Cookie("refresh_token")
 		if err != nil {
 			http.Error(w, "Refresh token not present", http.StatusBadRequest)
@@ -250,7 +249,7 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 		cfg, _ := config.Get()
 
 		// Generate new tokens
-		newAccessToken := generateJWT(user, tokenInfo.Username, "access", *cfg)
+		newAccessToken := "Bearer " + generateJWT(user, tokenInfo.Username, "access", *cfg)
 		newIDToken := generateJWT(user, tokenInfo.Username, "id", *cfg)
 
 		// Set new tokens as cookies
