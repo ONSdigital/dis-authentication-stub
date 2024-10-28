@@ -37,6 +37,31 @@ func LoadUsers(ctx context.Context, filename string) ([]models.User, error) {
 	return users, nil
 }
 
+func LoadJwtKeys(ctx context.Context, filename string) ([]models.Response, error) {
+	jwtKeysFile, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(ctx, fmt.Sprintf("could not open file %s", filename), err)
+		return nil, err
+	}
+	defer jwtKeysFile.Close()
+
+	jwtKeysFileBytes, err := io.ReadAll(jwtKeysFile)
+	if err != nil {
+		log.Fatal(ctx, fmt.Sprintf("could not read from file %s", filename), err)
+		return nil, err
+	}
+
+	var keys []models.Response
+
+	err = json.Unmarshal(jwtKeysFileBytes, &keys)
+	if err != nil {
+		log.Fatal(ctx, fmt.Sprintf("could not unmarshal JSON from file %s", filename), err)
+		return nil, err
+	}
+
+	return keys, nil
+}
+
 // VerifyUser checks if the provided email exists in the users.json file
 func VerifyUser(ctx context.Context, filename, email string) (*models.User, error) {
 	// Load users from the file

@@ -12,3 +12,8 @@ type TemplateData struct {
 	Users       []User
 	RedirectURL string
 }
+
+type Response struct {
+	Kid string `json:"kid"`
+	Key string `json:"key"`
+}
