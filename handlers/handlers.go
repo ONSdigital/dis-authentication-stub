@@ -101,6 +101,8 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 		http.SetCookie(w, &http.Cookie{Name: "id_token", Value: id_token, Path: "/"})
 		http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: refresh_token, Path: "/"})
 
+		fmt.Fprintf(w, "access_token %s \n", access_token)
+
 		http.Redirect(w, req, redirect, http.StatusSeeOther)
 	}
 }
@@ -149,4 +151,67 @@ func generateJWT(user models.User, username string, tokenType string, cfg config
 	}
 
 	return tokenString
+}
+
+func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprintf(w, "Hello delete handler....")
+
+		// Extract refresh token from cookies
+		refreshCookie, err := req.Cookie("refresh_token")
+		if err != nil {
+			http.Error(w, "Refresh token not found", http.StatusUnauthorized)
+			return
+		}
+		fmt.Fprintf(w, "refreshCookie %s \n", refreshCookie)
+
+		// Check if the refresh token exists in the models' in-memory map
+		refreshToken := refreshCookie.Value
+		if _, exists := models.RefreshTokenStore[refreshToken]; !exists {
+			http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+			return
+		}
+		fmt.Fprintf(w, "refreshToken %s \n", refreshToken)
+		fmt.Fprintf(w, "models.RefreshTokenStore before deletion %s \n", models.RefreshTokenStore)
+
+		delete(models.RefreshTokenStore, refreshToken)
+
+		expiredCookie := time.Now().Add(-1 * time.Hour)
+		fmt.Fprintf(w, "expiredCookie %s \n", expiredCookie)
+		fmt.Fprintf(w, "models.RefreshTokenStore after deletion %s \n", models.RefreshTokenStore)
+
+		http.SetCookie(w, &http.Cookie{Name: "access_token", Value: "", Path: "/"})
+		http.SetCookie(w, &http.Cookie{Name: "id_token", Value: "", Path: "/"})
+		http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: "", Path: "/"})
+
+		// // Expire access_token cookie
+		// http.SetCookie(w, &http.Cookie{
+		// 	Name:     "access_token",
+		// 	Value:    "",
+		// 	Path:     "/",
+		// 	Expires:  expiredCookie,
+		// 	HttpOnly: true,
+		// })
+
+		// // Expire id_token cookie
+		// http.SetCookie(w, &http.Cookie{
+		// 	Name:     "id_token",
+		// 	Value:    "",
+		// 	Path:     "/",
+		// 	Expires:  expiredCookie,
+		// 	HttpOnly: true,
+		// })
+
+		// // Expire refresh_token cookie
+		// http.SetCookie(w, &http.Cookie{
+		// 	Name:     "refresh_token",
+		// 	Value:    "",
+		// 	Path:     "/",
+		// 	Expires:  expiredCookie,
+		// 	HttpOnly: true,
+		// })
+
+		// Respond with a success message
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
