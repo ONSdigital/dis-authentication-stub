@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/models"
 	"github.com/ONSdigital/log.go/v2/log"
 )
@@ -55,4 +56,15 @@ func VerifyUser(ctx context.Context, filename, email string) (*models.User, erro
 
 	// If no user was found
 	return nil, errors.New("user not found")
+}
+
+func GetServiceAuthTokens(cfg config.Config) map[string]string {
+	return map[string]string{
+		cfg.DatasetApiAuthToken:          "dp-dataset-api",
+		cfg.DownloadServiceAuthToken:     "dp-download-service",
+		cfg.FilterApiAuthToken:           "dp-filter-api",
+		cfg.StaticFilePublisherAuthToken: "dp-static-file-publisher",
+		cfg.UploadServiceAuthToken:       "dp-upload-service",
+		cfg.ZebedeeAuthToken:             "zebedee",
+	}
 }
