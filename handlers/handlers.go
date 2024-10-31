@@ -19,6 +19,33 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+		}
+
+		keys, err := utils.LoadJwtKeys(ctx, "static/keys/jwt-keys.json")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		keysMap := make(map[string]string, 2)
+
+		for _, k := range keys {
+			keysMap[k.Kid] = k.Key
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(keysMap)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {

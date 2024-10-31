@@ -5,6 +5,7 @@ A new auth service stub to ensure we can test all actions associated with login/
 
 * Run `make debug` to run application on http://localhost:29500
 * Run `make help` to see full list of make targets
+* Run `make prep` to decrypt the necessary files to run the service
 
 ### Dependencies
 
