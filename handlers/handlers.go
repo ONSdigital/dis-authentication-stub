@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ONSdigital/dis-authentication-stub/config"
@@ -269,5 +271,35 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 
 		// Respond with a 200 OK status
 		w.WriteHeader(http.StatusOK)
+  }
+}
+// Verify the service token exists within config
+func IdentifyUser(ctx context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+		}
+
+		// Retrieve Authorization header
+		authorizationHeader := req.Header.Get("Authorization")
+		if authorizationHeader == "" {
+			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+			return
+		}
+
+		// Check if service token from header matches one in config
+		cfg, _ := config.Get()
+		serviceAuthTokens := utils.GetServiceAuthTokens(*cfg)
+		serviceToken := strings.Replace(authorizationHeader, "Bearer ", "", 1)
+		if serviceAuthTokens[serviceToken] != "" {
+			response := map[string]string{"identifier": serviceAuthTokens[serviceToken]}
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		// Service token did not match with any in config
+		w.WriteHeader(http.StatusForbidden)
+
 	}
 }
