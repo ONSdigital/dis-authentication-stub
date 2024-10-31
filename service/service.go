@@ -69,6 +69,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.Path("/tokens/self").Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
 
+	r.Path("/identity").Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
+
 	hc.Start(ctx)
 
 	// Run the http server in a new go-routine
