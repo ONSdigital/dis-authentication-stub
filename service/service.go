@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"net/http"
+	"net/url"
 
 	"github.com/ONSdigital/dis-authentication-stub/api"
 	"github.com/ONSdigital/dis-authentication-stub/config"
+	"github.com/ONSdigital/dis-authentication-stub/directors"
 	"github.com/ONSdigital/dis-authentication-stub/handlers"
+	"github.com/ONSdigital/dp-net/v2/handlers/reverseproxy"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -29,6 +32,14 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	log.Info(ctx, "running service")
 
 	log.Info(ctx, "using service configuration", log.Data{"config": cfg})
+
+	apiRouterURL, err := url.Parse(cfg.APIRouterURL)
+	if err != nil {
+		log.Event(ctx, "error parsing API router URL", log.FATAL, log.Data{"error": err})
+		return nil, err
+	}
+
+	apiRouterProxy := reverseproxy.Create(apiRouterURL, directors.Director("/api"), nil)
 
 	// Get HTTP Server and ... // TODO: Add any middleware that your service requires
 	r := mux.NewRouter()
@@ -70,6 +81,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	r.Path("/tokens/self").Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
 
 	r.Path("/identity").Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
+
+	r.Handle("/api/{uri:.*}", apiRouterProxy)
 
 	hc.Start(ctx)
 
