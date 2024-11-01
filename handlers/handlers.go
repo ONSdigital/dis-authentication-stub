@@ -19,6 +19,33 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+		}
+
+		keys, err := utils.LoadJwtKeys(ctx, "static/keys/jwt-keys.json")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		keysMap := make(map[string]string, 2)
+
+		for _, k := range keys {
+			keysMap[k.Kid] = k.Key
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(keysMap)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
@@ -226,6 +253,53 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 	}
 }
 
+func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		// retrieve refresh_token cookie from the request
+		refreshCookie, err := req.Cookie("refresh_token")
+		if err != nil {
+			http.Error(w, "Refresh token not present", http.StatusBadRequest)
+			return
+		}
+		refreshTokenValue := refreshCookie.Value
+
+		// Check if the refresh token exists and hasn't expired
+		tokenInfo, exists := models.RefreshTokenStore[refreshTokenValue]
+		if !exists || tokenInfo.SessionExpiry.Before(time.Now()) {
+			http.Error(w, "Invalid or expired refresh token", http.StatusForbidden)
+			return
+		}
+
+		// Retrieve the user details from the in-memory map using the username
+		user := models.User{
+			Username: tokenInfo.Username,
+		}
+
+		cfg, _ := config.Get()
+
+		// Generate new tokens
+		newAccessToken := "Bearer " + generateJWT(user, tokenInfo.Username, "access", *cfg)
+		newIDToken := generateJWT(user, tokenInfo.Username, "id", *cfg)
+
+		// Set new tokens as cookies
+		http.SetCookie(w, &http.Cookie{
+			Name:     "access_token",
+			Value:    newAccessToken,
+			Path:     "/",
+			HttpOnly: true,
+		})
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "id_token",
+			Value:    newIDToken,
+			Path:     "/",
+			HttpOnly: true,
+		})
+
+		// Respond with a 200 OK status
+		w.WriteHeader(http.StatusOK)
+  }
+}
 // Verify the service token exists within config
 func IdentifyUser(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
