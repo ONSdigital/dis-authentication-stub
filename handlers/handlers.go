@@ -23,6 +23,7 @@ func JWTKeysHandler(ctx context.Context, loadKeysFunc func(context.Context, stri
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
 
 		keys, err := loadKeysFunc(ctx, "static/keys/jwt-keys.json")
