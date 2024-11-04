@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/ONSdigital/dis-authentication-stub/utils"
 	"net/http"
 
 	"github.com/ONSdigital/dis-authentication-stub/api"
@@ -61,7 +62,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.StrictSlash(true).Path("/health").Methods(http.MethodGet).HandlerFunc(hc.Handler)
 
-	r.Path("/jwt-keys").Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx))
+	r.Path("/jwt-keys").Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, utils.LoadJwtKeys))
 
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx))
 

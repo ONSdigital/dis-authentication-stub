@@ -19,13 +19,13 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
+func JWTKeysHandler(ctx context.Context, loadKeysFunc func(context.Context, string) ([]models.Response, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
 		}
 
-		keys, err := utils.LoadJwtKeys(ctx, "static/keys/jwt-keys.json")
+		keys, err := loadKeysFunc(ctx, "static/keys/jwt-keys.json")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -298,8 +298,9 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 
 		// Respond with a 200 OK status
 		w.WriteHeader(http.StatusOK)
-  }
+	}
 }
+
 // Verify the service token exists within config
 func IdentifyUser(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
