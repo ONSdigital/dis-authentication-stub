@@ -2,8 +2,9 @@ package service
 
 import (
 	"context"
-	"github.com/ONSdigital/dis-authentication-stub/utils"
 	"net/http"
+
+	"github.com/ONSdigital/dis-authentication-stub/utils"
 
 	"github.com/ONSdigital/dis-authentication-stub/api"
 	"github.com/ONSdigital/dis-authentication-stub/config"
@@ -64,11 +65,11 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.Path("/jwt-keys").Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, utils.LoadJwtKeys))
 
-	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx))
+	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, "static/json/users.json", "templates/user.login.html"))
 
-	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx))
+	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, "static/json/users.json", "static/keys/private.key"))
 
-	r.Path("/tokens/self").Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx))
+	r.Path("/tokens/self").Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, "templates", "delete.token.html"))
 
 	r.Path("/tokens/self").Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
 
