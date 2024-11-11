@@ -51,6 +51,7 @@ func FlorenceLoginHandler(ctx context.Context, usersFile string, templateFile st
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
 
 		redirectURL := req.URL.Query().Get("redirect")
@@ -89,6 +90,7 @@ func FlorenceLoginHandlerPOST(ctx context.Context, usersFile string, privateKeyP
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
 
 		err := req.ParseForm()
@@ -195,6 +197,7 @@ func TokenSelfGetHandler(ctx context.Context, templatePath string, filename stri
 		w.Header().Set("Content-Type", "text/html")
 		if err := tmpl.Execute(w, nil); err != nil {
 			http.Error(w, "Failed to render template", http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -306,6 +309,7 @@ func IdentifyUser(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
 
 		// Retrieve Authorization header
