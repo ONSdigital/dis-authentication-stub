@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ONSdigital/dis-authentication-stub/api"
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/directors"
 	"github.com/ONSdigital/dis-authentication-stub/handlers"
@@ -14,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
-	// "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Service contains all the configs, server and clients to run the API
@@ -22,7 +20,6 @@ type Service struct {
 	Config      *config.Config
 	Server      HTTPServer
 	Router      *mux.Router
-	API         *api.API
 	ServiceList *ExternalServiceList
 	HealthCheck HealthChecker
 }
@@ -41,31 +38,20 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	apiRouterProxy := reverseproxy.Create(apiRouterURL, directors.Director("/api"), nil)
 
-	// Get HTTP Server and ... // TODO: Add any middleware that your service requires
+	// Get HTTP Server
 	r := mux.NewRouter()
 
 	if cfg.OtelEnabled {
 		r.Use(otelmux.Middleware(cfg.OTServiceName))
-
-		// TODO: Any middleware will require 'otelhttp.NewMiddleware(cfg.OTServiceName),' included for Open Telemetry
 	}
 
 	s := serviceList.GetHTTPServer(cfg.BindAddr, r)
-
-	// TODO: Add other(s) to serviceList here
-
-	// Setup the API
-	a := api.Setup(ctx, r)
 
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
 
 	if err != nil {
 		log.Fatal(ctx, "could not instantiate healthcheck", err)
 		return nil, err
-	}
-
-	if err := registerCheckers(ctx, hc); err != nil {
-		return nil, errors.Wrap(err, "unable to register checkers")
 	}
 
 	r.StrictSlash(true).Path("/health").HandlerFunc(hc.Handler)
@@ -100,7 +86,6 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	return &Service{
 		Config:      cfg,
 		Router:      r,
-		API:         a,
 		HealthCheck: hc,
 		ServiceList: serviceList,
 		Server:      s,
@@ -129,8 +114,6 @@ func (svc *Service) Close(ctx context.Context) error {
 			log.Error(ctx, "failed to shutdown http server", err)
 			hasShutdownError = true
 		}
-
-		// TODO: Close other dependencies, in the expected order
 	}()
 
 	// wait for shutdown success (via cancel) or failure (timeout)
@@ -150,12 +133,5 @@ func (svc *Service) Close(ctx context.Context) error {
 	}
 
 	log.Info(ctx, "graceful shutdown was successful")
-	return nil
-}
-
-func registerCheckers(ctx context.Context,
-	hc HealthChecker) (err error) {
-	// TODO: add other health checks here, as per dp-upload-service
-
 	return nil
 }

@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -22,12 +21,15 @@ import (
 func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
-			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+			log.Event(ctx, "Request method not allowed", log.ERROR)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
 		}
 
 		keys, err := utils.LoadJwtKeys(ctx, "static/keys/jwt-keys.json")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Error(ctx, "Unable to load JWT keys", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -40,7 +42,8 @@ func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(keysMap)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Error(ctx, "Unable to encode keysMap", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
@@ -49,7 +52,9 @@ func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
 func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
-			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+			log.Event(ctx, "Request method not allowed", log.ERROR)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
 		}
 
 		redirectURL := req.URL.Query().Get("redirect")
@@ -59,15 +64,16 @@ func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
 
 		users, err := utils.LoadUsers(ctx, "static/json/users.json")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Error(ctx, "Unable to load users", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		filename := "templates/user.login.html"
 		tmpl, err := template.ParseFiles(filename)
 		if err != nil {
-			log.Fatal(ctx, fmt.Sprintf("could not parse template file %s", filename), err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Error(ctx, "Could not parse template file", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -78,8 +84,8 @@ func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
 
 		err = tmpl.Execute(w, data)
 		if err != nil {
-			log.Fatal(ctx, "could not apply template", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Error(ctx, "Could not apply template", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
@@ -88,12 +94,15 @@ func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
 func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
-			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+			log.Event(ctx, "Request method not allowed", log.ERROR)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
 		}
 
 		err := req.ParseForm()
 		if err != nil {
-			http.Error(w, "Unable to parse form", http.StatusBadRequest)
+			log.Error(ctx, "Unable to parse form", err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		// Check both form and query parameters
@@ -106,7 +115,8 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 		// Verify the user by email
 		user, err := utils.VerifyUser(ctx, "static/json/users.json", username)
 		if err != nil {
-			http.Error(w, "Invalid user", http.StatusBadRequest)
+			log.Error(ctx, "Inavlid user", err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -187,14 +197,17 @@ func TokenSelfGetHandler(ctx context.Context) http.HandlerFunc {
 		tmplPath := filepath.Join("templates", "delete.token.html")
 		tmpl, err := template.ParseFiles(tmplPath)
 		if err != nil {
-			http.Error(w, "Failed to load template", http.StatusInternalServerError)
+			log.Error(ctx, "Failed to load template", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		// Execute the template and write to response
 		w.Header().Set("Content-Type", "text/html")
 		if err := tmpl.Execute(w, nil); err != nil {
-			http.Error(w, "Failed to render template", http.StatusInternalServerError)
+			log.Error(ctx, "Failed to render template", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -204,14 +217,16 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 		// retrieve the refresh token from cookies
 		refreshCookie, err := req.Cookie("refresh_token")
 		if err != nil {
-			http.Error(w, "Refresh token not found", http.StatusUnauthorized)
+			log.Error(ctx, "Refresh token not found", err)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		// Check if the refresh token exists in the in-memory store
 		refreshToken := refreshCookie.Value
 		if _, exists := models.RefreshTokenStore[refreshToken]; !exists {
-			http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+			log.Error(ctx, "Invalid or expired refresh token", err)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
@@ -258,7 +273,8 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 		// retrieve refresh_token cookie from the request
 		refreshCookie, err := req.Cookie("refresh_token")
 		if err != nil {
-			http.Error(w, "Refresh token not present", http.StatusBadRequest)
+			log.Error(ctx, "Refresh token not present", err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		refreshTokenValue := refreshCookie.Value
@@ -266,7 +282,8 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 		// Check if the refresh token exists and hasn't expired
 		tokenInfo, exists := models.RefreshTokenStore[refreshTokenValue]
 		if !exists || tokenInfo.SessionExpiry.Before(time.Now()) {
-			http.Error(w, "Invalid or expired refresh token", http.StatusForbidden)
+			log.Error(ctx, "Invalid or expired refresh token", err)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
@@ -298,19 +315,23 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 
 		// Respond with a 200 OK status
 		w.WriteHeader(http.StatusOK)
-  }
+	}
 }
+
 // Verify the service token exists within config
 func IdentifyUser(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
-			http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
+			log.Event(ctx, "Request method not allowed", log.ERROR)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
 		}
 
 		// Retrieve Authorization header
 		authorizationHeader := req.Header.Get("Authorization")
 		if authorizationHeader == "" {
-			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+			log.Event(ctx, "Authorization header missing", log.ERROR)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
