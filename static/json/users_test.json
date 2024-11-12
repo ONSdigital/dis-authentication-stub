@@ -1,0 +1,16 @@
+[
+    {
+      "email": "admin@ons.gov.uk",
+      "username": "c6a20lbf-30eb-0235-b621-ke2aw87dd385",
+      "forename": "John",
+      "surname": "Smith",
+      "groups": ["role-admin"]
+    },
+    {
+      "email": "viewer1@ons.gov.uk",
+      "username": "38953408-me50-9272-b9a8-0230ke4b7me6",
+      "forename": "Anthony",
+      "surname": "Williams",
+      "groups": []
+    }
+  ]
