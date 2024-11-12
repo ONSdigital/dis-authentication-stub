@@ -20,6 +20,13 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+const (
+	users_test_json = "../static/json/users_test.json"
+	user_login_html = "../templates/user.login.html"
+	private_key     = "../static/keys/private.key"
+	public_key      = "../static/keys/public.key"
+)
+
 func TestJWTKeysHandler_Success(t *testing.T) {
 	Convey("Given a JWTKeysHandler", t, func() {
 		// mock LoadJwtKeys
@@ -107,7 +114,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 		ctx := context.Background()
 
 		Convey("When the request method is not GET", func() {
-			handler := FlorenceLoginHandler(ctx, "../static/json/users_test.json", "../templates/user.login.html")
+			handler := FlorenceLoginHandler(ctx, users_test_json, user_login_html)
 			request := httptest.NewRequest(http.MethodPost, "/florence/login", nil)
 			responseRecorder := httptest.NewRecorder()
 
@@ -120,7 +127,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 		})
 
 		Convey("When a valid GET request is made with a redirect URL", func() {
-			handler := FlorenceLoginHandler(ctx, "../static/json/users_test.json", "../templates/user.login.html")
+			handler := FlorenceLoginHandler(ctx, users_test_json, user_login_html)
 			request := httptest.NewRequest(http.MethodGet, "/florence/login?redirect=/some/path", nil)
 			responseRecorder := httptest.NewRecorder()
 
@@ -137,7 +144,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 		})
 
 		Convey("When a valid GET request is made without a redirect URL", func() {
-			handler := FlorenceLoginHandler(ctx, "../static/json/users_test.json", "../templates/user.login.html")
+			handler := FlorenceLoginHandler(ctx, users_test_json, user_login_html)
 			request := httptest.NewRequest(http.MethodGet, "/florence/login", nil)
 			responseRecorder := httptest.NewRecorder()
 
@@ -153,7 +160,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 		})
 
 		Convey("When the users file is missing", func() {
-			Handler := FlorenceLoginHandler(ctx, "../static/json/invalid_users.json", "../templates/user.login.html")
+			Handler := FlorenceLoginHandler(ctx, "../static/json/invalid_users.json", user_login_html)
 			request := httptest.NewRequest(http.MethodGet, "/florence/login", nil)
 			responseRecorder := httptest.NewRecorder()
 
@@ -166,7 +173,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 		})
 
 		Convey("When the template file is missing", func() {
-			Handler := FlorenceLoginHandler(ctx, "../static/json/users_test.json", "../templates/invalid_template.html")
+			Handler := FlorenceLoginHandler(ctx, users_test_json, "../templates/invalid_template.html")
 			request := httptest.NewRequest(http.MethodGet, "/florence/login", nil)
 			responseRecorder := httptest.NewRecorder()
 
@@ -186,7 +193,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		ctx := context.Background()
 
 		Convey("When the request method is not POST", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/users_test.json", "../static/keys/private.key")
+			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
 			request := httptest.NewRequest(http.MethodGet, "/florence/login", nil)
 			responseRecorder := httptest.NewRecorder()
 
@@ -199,7 +206,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When a POST request is made but form data is missing", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/users_test.json", "../static/keys/private.key")
+			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
 			request := httptest.NewRequest(http.MethodPost, "/florence/login", nil)
 			responseRecorder := httptest.NewRecorder()
 
@@ -212,7 +219,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When a POST request is made but the user is invalid", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/users_test.json", "../static/keys/private.key")
+			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
 			formData := url.Values{}
 			formData.Set("username", "invalid@ons.gov.uk")
 			request := httptest.NewRequest(http.MethodPost, "/florence/login", strings.NewReader(formData.Encode()))
@@ -228,7 +235,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When a valid POST request is made without a redirect URL", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/users_test.json", "../static/keys/private.key")
+			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
 
 			formData := url.Values{}
 			formData.Set("username", "admin@ons.gov.uk")
@@ -272,7 +279,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When a valid POST request is made with a redirect URL", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/users_test.json", "../static/keys/private.key")
+			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
 
 			formData := url.Values{}
 			formData.Set("username", "admin@ons.gov.uk")
@@ -315,7 +322,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When the users file is missing", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/invalid_users.json", "../static/keys/private.key")
+			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/invalid_users.json", private_key)
 			formData := url.Values{}
 			formData.Set("username", "admin@ons.gov.uk")
 			request := httptest.NewRequest(http.MethodPost, "/florence/login", strings.NewReader(formData.Encode()))
@@ -354,7 +361,7 @@ func TestGenerateJWT(t *testing.T) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 
-		publicKeyData, err := os.ReadFile("../static/keys/public.key")
+		publicKeyData, err := os.ReadFile(public_key)
 		So(err, ShouldBeNil)
 
 		publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyData)
@@ -375,7 +382,7 @@ func TestGenerateJWT(t *testing.T) {
 		}
 
 		Convey("When generating an access token", func() {
-			tokenString := generateJWT(testUser, "access", *cfg, "../static/keys/private.key")
+			tokenString := generateJWT(testUser, "access", *cfg, private_key)
 
 			Convey("Then it should return a valid JWT string", func() {
 				token, err := jwt.Parse(tokenString, keyFunc)
@@ -395,7 +402,7 @@ func TestGenerateJWT(t *testing.T) {
 		})
 
 		Convey("When generating an id token", func() {
-			tokenString := generateJWT(testUser, "id", *cfg, "../static/keys/private.key")
+			tokenString := generateJWT(testUser, "id", *cfg, private_key)
 
 			Convey("Then it should return a valid JWT string", func() {
 				token, err := jwt.Parse(tokenString, keyFunc)
@@ -418,7 +425,7 @@ func TestGenerateJWT(t *testing.T) {
 		})
 
 		Convey("When generating a token with an invalid token type", func() {
-			tokenString := generateJWT(testUser, "invalidType", *cfg, "../static/keys/private.key")
+			tokenString := generateJWT(testUser, "invalidType", *cfg, private_key)
 
 			Convey("Then it should return a JWT string without token-specific claims", func() {
 				token, err := jwt.Parse(tokenString, keyFunc)
