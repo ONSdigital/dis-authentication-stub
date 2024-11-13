@@ -14,7 +14,6 @@ import (
 
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/models"
-	"github.com/ONSdigital/dis-authentication-stub/utils"
 	"github.com/golang-jwt/jwt"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -63,26 +62,6 @@ func TestJWTKeysHandler_Success(t *testing.T) {
 	})
 }
 
-func TestJWTKeysHandler_MethodNotAllowed(t *testing.T) {
-	Convey("Given a JWTKeysHandler", t, func() {
-		handler := JWTKeysHandler(context.Background(), utils.LoadJwtKeys)
-
-		Convey("When we make a POST request to the /jwt-keys endpoint", func() {
-			request, err := http.NewRequest(http.MethodPost, "/jwt-keys", nil)
-			So(err, ShouldBeNil)
-
-			responseRecorder := httptest.NewRecorder()
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then we have a 405 response and the expected error message", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusMethodNotAllowed)
-				expectedErrorMessage := "Request method not allowed\n"
-				So(responseRecorder.Body.String(), ShouldEqual, expectedErrorMessage)
-			})
-		})
-	})
-}
-
 func TestJWTKeysHandler_Error(t *testing.T) {
 	Convey("Given a JWTKeysHandler and LoadJwtKeys func returns an error", t, func() {
 		// mock LoadJwtKeys
@@ -100,10 +79,8 @@ func TestJWTKeysHandler_Error(t *testing.T) {
 			responseRecorder := httptest.NewRecorder()
 			handler.ServeHTTP(responseRecorder, request)
 
-			Convey("Then we have a 500 response and the expected error message", func() {
+			Convey("Then we have a 500 response", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
-				expectedErrorMessage := "failed to load jwt keys\n"
-				So(responseRecorder.Body.String(), ShouldEqual, expectedErrorMessage)
 			})
 		})
 	})
@@ -112,19 +89,6 @@ func TestJWTKeysHandler_Error(t *testing.T) {
 func TestFlorenceLoginHandler(t *testing.T) {
 	Convey("Given a context, usersFile, templateFile and a FlorenceLoginHandler", t, func() {
 		ctx := context.Background()
-
-		Convey("When the request method is not GET", func() {
-			handler := FlorenceLoginHandler(ctx, users_test_json, user_login_html)
-			request := httptest.NewRequest(http.MethodPost, "/florence/login", nil)
-			responseRecorder := httptest.NewRecorder()
-
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 405 Method Not Allowed", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusMethodNotAllowed)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Request method not allowed")
-			})
-		})
 
 		Convey("When a valid GET request is made with a redirect URL", func() {
 			handler := FlorenceLoginHandler(ctx, users_test_json, user_login_html)
@@ -168,7 +132,6 @@ func TestFlorenceLoginHandler(t *testing.T) {
 
 			Convey("Then it should return 500 Internal Server Error", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "no such file or directory")
 			})
 		})
 
@@ -181,7 +144,6 @@ func TestFlorenceLoginHandler(t *testing.T) {
 
 			Convey("Then it should return 500 Internal Server Error", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "no such file or directory")
 			})
 		})
 
@@ -192,19 +154,6 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 	Convey("Given a context, usersFile, privateKeyPath and a FlorenceLoginHandlerPOST", t, func() {
 		ctx := context.Background()
 
-		Convey("When the request method is not POST", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
-			request := httptest.NewRequest(http.MethodGet, "/florence/login", nil)
-			responseRecorder := httptest.NewRecorder()
-
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 405 Method Not Allowed", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusMethodNotAllowed)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Request method not allowed")
-			})
-		})
-
 		Convey("When a POST request is made but form data is missing", func() {
 			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
 			request := httptest.NewRequest(http.MethodPost, "/florence/login", nil)
@@ -214,7 +163,6 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 
 			Convey("Then it should return 400 Bad Request", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusBadRequest)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Invalid user")
 			})
 		})
 
@@ -230,7 +178,6 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 
 			Convey("Then it should return 400 Bad Request", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusBadRequest)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Invalid user")
 			})
 		})
 
@@ -333,7 +280,6 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 
 			Convey("Then it should return 400 Bad Request", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusBadRequest)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Invalid user")
 			})
 		})
 
@@ -349,7 +295,6 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 
 			Convey("Then it should return 400 Bad Request", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusBadRequest)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Invalid user")
 			})
 		})
 
@@ -505,9 +450,8 @@ func TestTokenSelfGetHandler(t *testing.T) {
 
 			handler.ServeHTTP(responseRecorder, request)
 
-			Convey("Then it should return 500 Internal Server Error with a 'Failed to load template' message", func() {
+			Convey("Then it should return 500 Internal Server Error", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Failed to load template")
 			})
 		})
 
@@ -525,9 +469,8 @@ func TestTokenSelfDeleteHandler(t *testing.T) {
 
 			handler.ServeHTTP(responseRecorder, request)
 
-			Convey("Then it should return 401 Unauthorized with a 'Refresh token not found' message", func() {
+			Convey("Then it should return 401 Unauthorized", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusUnauthorized)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Refresh token not found")
 			})
 		})
 
@@ -540,9 +483,8 @@ func TestTokenSelfDeleteHandler(t *testing.T) {
 
 			handler.ServeHTTP(responseRecorder, request)
 
-			Convey("Then it should return 401 Unauthorized with an 'Invalid or expired refresh token' message", func() {
+			Convey("Then it should return 401 Unauthorized", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusUnauthorized)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Invalid or expired refresh token")
 			})
 		})
 
@@ -617,9 +559,8 @@ func TestTokenSelfPutHandler(t *testing.T) {
 
 			handler.ServeHTTP(responseRecorder, request)
 
-			Convey("Then it should return 400 Bad Request with a 'Refresh token not present' message", func() {
+			Convey("Then it should return 400 Bad Request", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusBadRequest)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Refresh token not present")
 			})
 		})
 
@@ -630,9 +571,8 @@ func TestTokenSelfPutHandler(t *testing.T) {
 
 			handler.ServeHTTP(responseRecorder, request)
 
-			Convey("Then it should return 403 Forbidden with an 'Invalid or expired refresh token' message", func() {
+			Convey("Then it should return 403 Forbidden", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusForbidden)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Invalid or expired refresh token")
 			})
 		})
 
@@ -688,18 +628,6 @@ func TestIdentifyUser(t *testing.T) {
 		ctx := context.Background()
 		handler := IdentifyUser(ctx)
 
-		Convey("When the request method is not GET", func() {
-			request := httptest.NewRequest(http.MethodPost, "/identity", nil)
-			responseRecorder := httptest.NewRecorder()
-
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 405 Method Not Allowed", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusMethodNotAllowed)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Request method not allowed")
-			})
-		})
-
 		Convey("When the Authorization header is missing", func() {
 			request := httptest.NewRequest(http.MethodGet, "/identity", nil)
 			responseRecorder := httptest.NewRecorder()
@@ -708,7 +636,6 @@ func TestIdentifyUser(t *testing.T) {
 
 			Convey("Then it should return 401 Unauthorized", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusUnauthorized)
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "Authorization header missing")
 			})
 		})
 

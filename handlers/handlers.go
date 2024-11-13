@@ -20,12 +20,6 @@ import (
 
 func JWTKeysHandler(ctx context.Context, loadKeysFunc func(context.Context, string) ([]models.Response, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodGet {
-			log.Event(ctx, "Request method not allowed", log.ERROR)
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
 		keys, err := loadKeysFunc(ctx, "static/keys/jwt-keys.json")
 		if err != nil {
 			log.Error(ctx, "Unable to load JWT keys", err)
@@ -51,12 +45,6 @@ func JWTKeysHandler(ctx context.Context, loadKeysFunc func(context.Context, stri
 
 func FlorenceLoginHandler(ctx context.Context, usersFile string, templateFile string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodGet {
-			log.Event(ctx, "Request method not allowed", log.ERROR)
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
 		redirectURL := req.URL.Query().Get("redirect")
 		if redirectURL == "" {
 			redirectURL = "/florence/collections"
@@ -92,12 +80,6 @@ func FlorenceLoginHandler(ctx context.Context, usersFile string, templateFile st
 
 func FlorenceLoginHandlerPOST(ctx context.Context, usersFile string, privateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodPost {
-			log.Event(ctx, "Request method not allowed", log.ERROR)
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
 		err := req.ParseForm()
 		if err != nil {
 			log.Error(ctx, "Unable to parse form", err)
@@ -320,16 +302,10 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 // Verify the service token exists within config
 func IdentifyUser(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodGet {
-			log.Event(ctx, "Request method not allowed", log.ERROR)
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
 		// Retrieve Authorization header
 		authorizationHeader := req.Header.Get("Authorization")
 		if authorizationHeader == "" {
-			log.Event(ctx, "Authorization header missing", log.ERROR)
+			log.Error(ctx, "Authorization header missing", nil)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
