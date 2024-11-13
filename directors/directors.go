@@ -21,7 +21,7 @@ func setHeaders(req *http.Request) {
 	if accessTokenCookie, err := req.Cookie(dprequest.FlorenceCookieKey); err == nil && len(accessTokenCookie.Value) > 0 {
 		err := headers.SetAuthToken(req, accessTokenCookie.Value)
 		if err != nil {
-			log.Event(req.Context(), "unable to set auth token header", log.ERROR, log.Data{"error": err})
+			log.Error(req.Context(), "unable to set auth token header", err)
 		}
 	}
 }

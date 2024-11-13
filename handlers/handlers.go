@@ -18,7 +18,7 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
+func JWTKeysHandler(ctx context.Context, loadKeysFunc func(context.Context, string) ([]models.Response, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			log.Event(ctx, "Request method not allowed", log.ERROR)
@@ -26,7 +26,7 @@ func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
 			return
 		}
 
-		keys, err := utils.LoadJwtKeys(ctx, "static/keys/jwt-keys.json")
+		keys, err := loadKeysFunc(ctx, "static/keys/jwt-keys.json")
 		if err != nil {
 			log.Error(ctx, "Unable to load JWT keys", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -49,7 +49,7 @@ func JWTKeysHandler(ctx context.Context) http.HandlerFunc {
 	}
 }
 
-func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
+func FlorenceLoginHandler(ctx context.Context, usersFile string, templateFile string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			log.Event(ctx, "Request method not allowed", log.ERROR)
@@ -62,15 +62,14 @@ func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
 			redirectURL = "/florence/collections"
 		}
 
-		users, err := utils.LoadUsers(ctx, "static/json/users.json")
+		users, err := utils.LoadUsers(ctx, usersFile)
 		if err != nil {
 			log.Error(ctx, "Unable to load users", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		filename := "templates/user.login.html"
-		tmpl, err := template.ParseFiles(filename)
+		tmpl, err := template.ParseFiles(templateFile)
 		if err != nil {
 			log.Error(ctx, "Could not parse template file", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -91,7 +90,7 @@ func FlorenceLoginHandler(ctx context.Context) http.HandlerFunc {
 	}
 }
 
-func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
+func FlorenceLoginHandlerPOST(ctx context.Context, usersFile string, privateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			log.Event(ctx, "Request method not allowed", log.ERROR)
@@ -113,7 +112,7 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 			redirect = req.URL.Query().Get("redirect")
 		}
 		// Verify the user by email
-		user, err := utils.VerifyUser(ctx, "static/json/users.json", username)
+		user, err := utils.VerifyUser(ctx, usersFile, username)
 		if err != nil {
 			log.Error(ctx, "Inavlid user", err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -124,8 +123,8 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 		cfg, _ := config.Get()
 
 		//generate the tokens
-		access_token := "Bearer " + generateJWT(*user, username, "access", *cfg)
-		id_token := generateJWT(*user, username, "id", *cfg)
+		access_token := "Bearer " + generateJWT(*user, "access", *cfg, privateKeyPath)
+		id_token := generateJWT(*user, "id", *cfg, privateKeyPath)
 
 		refresh_token := "testrefreshtokennn" // Random opaque token string
 
@@ -145,10 +144,10 @@ func FlorenceLoginHandlerPOST(ctx context.Context) http.HandlerFunc {
 	}
 }
 
-func generateJWT(user models.User, username string, tokenType string, cfg config.Config) string {
+func generateJWT(user models.User, tokenType string, cfg config.Config, privateKeyPath string) string {
 
 	//RS256
-	privateKeyData, err := os.ReadFile("static/keys/private.key")
+	privateKeyData, err := os.ReadFile(privateKeyPath)
 	if err != nil {
 		return err.Error()
 	}
@@ -191,10 +190,10 @@ func generateJWT(user models.User, username string, tokenType string, cfg config
 	return tokenString
 }
 
-func TokenSelfGetHandler(ctx context.Context) http.HandlerFunc {
+func TokenSelfGetHandler(ctx context.Context, templatePath string, filename string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		// Load the HTML template
-		tmplPath := filepath.Join("templates", "delete.token.html")
+		tmplPath := filepath.Join(templatePath, filename)
 		tmpl, err := template.ParseFiles(tmplPath)
 		if err != nil {
 			log.Error(ctx, "Failed to load template", err)
@@ -295,8 +294,8 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 		cfg, _ := config.Get()
 
 		// Generate new tokens
-		newAccessToken := "Bearer " + generateJWT(user, tokenInfo.Username, "access", *cfg)
-		newIDToken := generateJWT(user, tokenInfo.Username, "id", *cfg)
+		newAccessToken := "Bearer " + generateJWT(user, "access", *cfg, "static/keys/private.key")
+		newIDToken := generateJWT(user, "id", *cfg, "static/keys/private.key")
 
 		// Set new tokens as cookies
 		http.SetCookie(w, &http.Cookie{

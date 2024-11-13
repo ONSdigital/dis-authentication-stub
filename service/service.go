@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/ONSdigital/dis-authentication-stub/utils"
+
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/directors"
 	"github.com/ONSdigital/dis-authentication-stub/handlers"
@@ -32,7 +34,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	apiRouterURL, err := url.Parse(cfg.APIRouterURL)
 	if err != nil {
-		log.Event(ctx, "error parsing API router URL", log.FATAL, log.Data{"error": err})
+		log.Fatal(ctx, "error parsing API router URL", err)
 		return nil, err
 	}
 
@@ -58,13 +60,13 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.StrictSlash(true).Path("/health").Methods(http.MethodGet).HandlerFunc(hc.Handler)
 
-	r.Path("/jwt-keys").Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx))
+	r.Path("/jwt-keys").Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, utils.LoadJwtKeys))
 
-	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx))
+	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, "static/json/users.json", "templates/user.login.html"))
 
-	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx))
+	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, "static/json/users.json", "static/keys/private.key"))
 
-	r.Path("/tokens/self").Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx))
+	r.Path("/tokens/self").Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, "templates", "delete.token.html"))
 
 	r.Path("/tokens/self").Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
 

@@ -1,0 +1,10 @@
+[
+    {
+      "kid": "key_id_1",
+      "key": "key_1"
+    },
+    {
+      "kid": "key_id_2",
+      "key": "key_2"
+    }
+]
