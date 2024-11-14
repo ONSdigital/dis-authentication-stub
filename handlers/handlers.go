@@ -96,7 +96,7 @@ func FlorenceLoginHandlerPOST(ctx context.Context, usersFile string, privateKeyP
 		// Verify the user by email
 		user, err := utils.VerifyUser(ctx, usersFile, username)
 		if err != nil {
-			log.Error(ctx, "Inavlid user", err)
+			log.Error(ctx, "Invalid user", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
