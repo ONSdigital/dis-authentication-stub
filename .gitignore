@@ -10,3 +10,9 @@
 .idea/
 *.iml
 *.iws
+
+# Go
+.go/
+
+# Key files
+*.key
