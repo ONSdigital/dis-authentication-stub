@@ -23,6 +23,7 @@ func TestConfig(t *testing.T) {
 				configuration, err = Get() // This Get() is only called once, when inside this function
 				So(err, ShouldBeNil)
 				So(configuration, ShouldResemble, &Config{
+					APIVersions:                  []string{"", "v1"},
 					BindAddr:                     "localhost:29500",
 					APIRouterURL:                 "http://localhost:23200",
 					GracefulShutdownTimeout:      5 * time.Second,

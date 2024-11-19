@@ -8,6 +8,7 @@ import (
 
 // Config represents service configuration for dis-authentication-stub
 type Config struct {
+	APIVersions                  []string      `envconfig:"API_VERSIONS"`
 	BindAddr                     string        `envconfig:"BIND_ADDR"`
 	APIRouterURL                 string        `envconfig:"API_ROUTER_URL"`
 	GracefulShutdownTimeout      time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
@@ -38,6 +39,7 @@ func Get() (*Config, error) {
 	}
 
 	cfg = &Config{
+		APIVersions:                  []string{"", "v1"},
 		BindAddr:                     "localhost:29500",
 		APIRouterURL:                 "http://localhost:23200",
 		GracefulShutdownTimeout:      5 * time.Second,

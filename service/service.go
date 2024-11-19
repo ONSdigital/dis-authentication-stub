@@ -60,21 +60,17 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.StrictSlash(true).Path("/health").Methods(http.MethodGet).HandlerFunc(hc.Handler)
 
-	r.Path("/jwt-keys").Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, utils.LoadJwtKeys))
-
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, "static/json/users.json", "templates/user.login.html"))
-
 	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, "static/json/users.json", "static/keys/private.key"))
-
-	r.Path("/tokens/self").Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, "templates", "delete.token.html"))
-
-	r.Path("/tokens/self").Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
-
-	r.Path("/tokens/self").Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx))
-
-	r.Path("/identity").Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
-
 	r.Handle("/api/{uri:.*}", apiRouterProxy)
+
+	for _, version := range cfg.APIVersions {
+		r.Path(versionedPath("/jwt-keys", version)).Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, utils.LoadJwtKeys))
+		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, "templates", "delete.token.html"))
+		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
+		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx))
+		r.Path(versionedPath("/identity", version)).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
+	}
 
 	hc.Start(ctx)
 
@@ -136,4 +132,13 @@ func (svc *Service) Close(ctx context.Context) error {
 
 	log.Info(ctx, "graceful shutdown was successful")
 	return nil
+}
+
+func versionedPath(path string, version string) string {
+	versionedPath := ""
+	if version != "" {
+		versionedPath += "/" + version
+	}
+	versionedPath += path
+	return versionedPath
 }
