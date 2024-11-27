@@ -1,0 +1,15 @@
+---
+platform: linux
+
+image_resource:
+  type: docker-image
+  source:
+    repository: onsdigital/dp-concourse-tools-nancy
+    tag: latest
+
+inputs:
+  - name: dis-authentication-stub
+    path: dis-authentication-stub
+
+run:
+  path: dis-authentication-stub/ci/scripts/audit.sh
