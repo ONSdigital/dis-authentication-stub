@@ -141,7 +141,7 @@ func (svc *Service) Close(ctx context.Context) error {
 	return nil
 }
 
-func versionedPath(path string, version string) string {
+func versionedPath(path, version string) string {
 	versionedPath := ""
 	if version != "" {
 		versionedPath += "/" + version

@@ -18,8 +18,12 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+const (
+	BearerPrefix = "Bearer "
+)
+
 func JWTKeysHandler(ctx context.Context, loadKeysFunc func(context.Context, string) ([]models.Response, error)) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		keys, err := loadKeysFunc(ctx, "static/keys/jwt-keys.json")
 		if err != nil {
 			log.Error(ctx, "Unable to load JWT keys", err)
@@ -43,7 +47,7 @@ func JWTKeysHandler(ctx context.Context, loadKeysFunc func(context.Context, stri
 	}
 }
 
-func FlorenceLoginHandler(ctx context.Context, usersFile string, templateFile string) http.HandlerFunc {
+func FlorenceLoginHandler(ctx context.Context, usersFile, templateFile string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		redirectURL := req.URL.Query().Get("redirect")
 		if redirectURL == "" {
@@ -78,7 +82,7 @@ func FlorenceLoginHandler(ctx context.Context, usersFile string, templateFile st
 	}
 }
 
-func FlorenceLoginHandlerPOST(ctx context.Context, usersFile string, privateKeyPath string) http.HandlerFunc {
+func FlorenceLoginHandlerPOST(ctx context.Context, usersFile, privateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		err := req.ParseForm()
 		if err != nil {
@@ -101,34 +105,32 @@ func FlorenceLoginHandlerPOST(ctx context.Context, usersFile string, privateKeyP
 			return
 		}
 
-		//userID := user.Username
 		cfg, _ := config.Get()
 
-		//generate the tokens
-		access_token := "Bearer " + generateJWT(*user, "access", *cfg, privateKeyPath)
-		id_token := generateJWT(*user, "id", *cfg, privateKeyPath)
+		// generate the tokens
+		accessToken := BearerPrefix + generateJWT(*user, "access", *cfg, privateKeyPath)
+		idToken := generateJWT(*user, "id", *cfg, privateKeyPath)
 
-		refresh_token := "testrefreshtokennn" // Random opaque token string
+		refreshToken := "testrefreshtokennn" // Random opaque token string
 
 		// Store refresh token details in the in-memory map
-		models.RefreshTokenStore[refresh_token] = models.RefreshTokenInfo{
+		models.RefreshTokenStore[refreshToken] = models.RefreshTokenInfo{
 			Username:      username,
 			AuthTime:      time.Now(),
 			SessionExpiry: time.Now().Add(cfg.RefreshTokenValidityDuration), // Use your config for duration
 		}
 
-		//add to header
-		http.SetCookie(w, &http.Cookie{Name: "access_token", Value: access_token, Path: "/"})
-		http.SetCookie(w, &http.Cookie{Name: "id_token", Value: id_token, Path: "/"})
-		http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: refresh_token, Path: "/"})
+		// add to header
+		http.SetCookie(w, &http.Cookie{Name: models.AccessTokenCookie, Value: accessToken, Path: "/"})
+		http.SetCookie(w, &http.Cookie{Name: models.IDTokenCookie, Value: idToken, Path: "/"})
+		http.SetCookie(w, &http.Cookie{Name: models.RefreshTokenCookie, Value: refreshToken, Path: "/"})
 
 		http.Redirect(w, req, redirect, http.StatusSeeOther)
 	}
 }
 
 func generateJWT(user models.User, tokenType string, cfg config.Config, privateKeyPath string) string {
-
-	//RS256
+	// RS256
 	privateKeyData, err := os.ReadFile(privateKeyPath)
 	if err != nil {
 		return err.Error()
@@ -159,8 +161,8 @@ func generateJWT(user models.User, tokenType string, cfg config.Config, privateK
 		claims["family_name"] = user.Surname
 		claims["email"] = user.Username
 		claims["exp"] = time.Now().Add(cfg.IDTokenValidityDuration).Unix()
-
 	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
 	// Sign the token with the pvt key
@@ -172,8 +174,8 @@ func generateJWT(user models.User, tokenType string, cfg config.Config, privateK
 	return tokenString
 }
 
-func TokenSelfGetHandler(ctx context.Context, templatePath string, filename string) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
+func TokenSelfGetHandler(ctx context.Context, templatePath, filename string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		// Load the HTML template
 		tmplPath := filepath.Join(templatePath, filename)
 		tmpl, err := template.ParseFiles(tmplPath)
@@ -196,7 +198,7 @@ func TokenSelfGetHandler(ctx context.Context, templatePath string, filename stri
 func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		// retrieve the refresh token from cookies
-		refreshCookie, err := req.Cookie("refresh_token")
+		refreshCookie, err := req.Cookie(models.RefreshTokenCookie)
 		if err != nil {
 			log.Error(ctx, "Refresh token not found", err)
 			w.WriteHeader(http.StatusUnauthorized)
@@ -218,7 +220,7 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 		expiredTime := time.Now().Add(-1 * time.Hour)
 
 		http.SetCookie(w, &http.Cookie{
-			Name:     "access_token",
+			Name:     models.AccessTokenCookie,
 			Value:    "",
 			Path:     "/",
 			Expires:  expiredTime,
@@ -227,7 +229,7 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 		})
 
 		http.SetCookie(w, &http.Cookie{
-			Name:     "id_token",
+			Name:     models.IDTokenCookie,
 			Value:    "",
 			Path:     "/",
 			Expires:  expiredTime,
@@ -236,7 +238,7 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 		})
 
 		http.SetCookie(w, &http.Cookie{
-			Name:     "refresh_token",
+			Name:     models.RefreshTokenCookie,
 			Value:    "",
 			Path:     "/",
 			Expires:  expiredTime,
@@ -252,7 +254,7 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		// retrieve refresh_token cookie from the request
-		refreshCookie, err := req.Cookie("refresh_token")
+		refreshCookie, err := req.Cookie(models.RefreshTokenCookie)
 		if err != nil {
 			log.Error(ctx, "Refresh token not present", err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -276,19 +278,19 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 		cfg, _ := config.Get()
 
 		// Generate new tokens
-		newAccessToken := "Bearer " + generateJWT(user, "access", *cfg, "static/keys/private.key")
+		newAccessToken := BearerPrefix + generateJWT(user, "access", *cfg, "static/keys/private.key")
 		newIDToken := generateJWT(user, "id", *cfg, "static/keys/private.key")
 
 		// Set new tokens as cookies
 		http.SetCookie(w, &http.Cookie{
-			Name:     "access_token",
+			Name:     models.AccessTokenCookie,
 			Value:    newAccessToken,
 			Path:     "/",
 			HttpOnly: true,
 		})
 
 		http.SetCookie(w, &http.Cookie{
-			Name:     "id_token",
+			Name:     models.IDTokenCookie,
 			Value:    newIDToken,
 			Path:     "/",
 			HttpOnly: true,
@@ -313,16 +315,19 @@ func IdentifyUser(ctx context.Context) http.HandlerFunc {
 		// Check if service token from header matches one in config
 		cfg, _ := config.Get()
 		serviceAuthTokens := utils.GetServiceAuthTokens(*cfg)
-		serviceToken := strings.Replace(authorizationHeader, "Bearer ", "", 1)
+		serviceToken := strings.Replace(authorizationHeader, BearerPrefix, "", 1)
 		if serviceAuthTokens[serviceToken] != "" {
 			response := map[string]string{"identifier": serviceAuthTokens[serviceToken]}
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(response)
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				log.Error(ctx, "Error encoding response", err)
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				w.WriteHeader(http.StatusOK)
+			}
 			return
 		}
 
 		// Service token did not match with any in config
 		w.WriteHeader(http.StatusForbidden)
-
 	}
 }

@@ -20,10 +20,16 @@ import (
 )
 
 const (
-	users_test_json = "../static/json/users_test.json"
-	user_login_html = "../templates/user.login.html"
-	private_key     = "../static/keys/private.key"
-	public_key      = "../static/keys/public.key"
+	usersTestJSON          = "../static/json/users_test.json"
+	userLoginHTML          = "../templates/user.login.html"
+	privateKey             = "../static/keys/private.key"
+	publicKey              = "../static/keys/public.key"
+	florenceLoginURL       = "/florence/login"
+	florenceCollectionsURL = "/florence/collections"
+	tokensSelfEndpoint     = "/tokens/self"
+
+	defaultValidRefreshToken = "validRefreshToken"
+	validTemplateFilename    = "delete.token.html"
 )
 
 func TestJWTKeysHandler_Success(t *testing.T) {
@@ -39,8 +45,7 @@ func TestJWTKeysHandler_Success(t *testing.T) {
 		handler := JWTKeysHandler(context.Background(), mockLoadJwtKeys)
 
 		Convey("When we make a GET request to the /jwt-keys endpoint", func() {
-
-			request, err := http.NewRequest(http.MethodGet, "/jwt-keys", nil)
+			request, err := http.NewRequest(http.MethodGet, "/jwt-keys", http.NoBody)
 			So(err, ShouldBeNil)
 
 			responseRecorder := httptest.NewRecorder()
@@ -72,8 +77,7 @@ func TestJWTKeysHandler_Error(t *testing.T) {
 		handler := JWTKeysHandler(context.Background(), mockLoadJwtKeys)
 
 		Convey("When we make a GET request to the /jwt-keys endpoint", func() {
-
-			request, err := http.NewRequest(http.MethodGet, "/jwt-keys", nil)
+			request, err := http.NewRequest(http.MethodGet, "/jwt-keys", http.NoBody)
 			So(err, ShouldBeNil)
 
 			responseRecorder := httptest.NewRecorder()
@@ -91,8 +95,8 @@ func TestFlorenceLoginHandler(t *testing.T) {
 		ctx := context.Background()
 
 		Convey("When a valid GET request is made with a redirect URL", func() {
-			handler := FlorenceLoginHandler(ctx, users_test_json, user_login_html)
-			request := httptest.NewRequest(http.MethodGet, "/florence/login?redirect=/some/path", nil)
+			handler := FlorenceLoginHandler(ctx, usersTestJSON, userLoginHTML)
+			request := httptest.NewRequest(http.MethodGet, "/florence/login?redirect=/some/path", http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -108,8 +112,8 @@ func TestFlorenceLoginHandler(t *testing.T) {
 		})
 
 		Convey("When a valid GET request is made without a redirect URL", func() {
-			handler := FlorenceLoginHandler(ctx, users_test_json, user_login_html)
-			request := httptest.NewRequest(http.MethodGet, "/florence/login", nil)
+			handler := FlorenceLoginHandler(ctx, usersTestJSON, userLoginHTML)
+			request := httptest.NewRequest(http.MethodGet, florenceLoginURL, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -119,13 +123,13 @@ func TestFlorenceLoginHandler(t *testing.T) {
 			})
 
 			Convey("And the response should contain the default redirect URL", func() {
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "/florence/collections")
+				So(responseRecorder.Body.String(), ShouldContainSubstring, florenceCollectionsURL)
 			})
 		})
 
 		Convey("When the users file is missing", func() {
-			Handler := FlorenceLoginHandler(ctx, "../static/json/invalid_users.json", user_login_html)
-			request := httptest.NewRequest(http.MethodGet, "/florence/login", nil)
+			Handler := FlorenceLoginHandler(ctx, "../static/json/invalid_users.json", userLoginHTML)
+			request := httptest.NewRequest(http.MethodGet, florenceLoginURL, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			Handler.ServeHTTP(responseRecorder, request)
@@ -136,8 +140,8 @@ func TestFlorenceLoginHandler(t *testing.T) {
 		})
 
 		Convey("When the template file is missing", func() {
-			Handler := FlorenceLoginHandler(ctx, users_test_json, "../templates/invalid_template.html")
-			request := httptest.NewRequest(http.MethodGet, "/florence/login", nil)
+			Handler := FlorenceLoginHandler(ctx, usersTestJSON, "../templates/invalid_template.html")
+			request := httptest.NewRequest(http.MethodGet, florenceLoginURL, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			Handler.ServeHTTP(responseRecorder, request)
@@ -146,7 +150,6 @@ func TestFlorenceLoginHandler(t *testing.T) {
 				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
 			})
 		})
-
 	})
 }
 
@@ -155,8 +158,8 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		ctx := context.Background()
 
 		Convey("When a POST request is made but form data is missing", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
-			request := httptest.NewRequest(http.MethodPost, "/florence/login", nil)
+			handler := FlorenceLoginHandlerPOST(ctx, usersTestJSON, privateKey)
+			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -167,10 +170,10 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When a POST request is made but the user is invalid", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
+			handler := FlorenceLoginHandlerPOST(ctx, usersTestJSON, privateKey)
 			formData := url.Values{}
 			formData.Set("username", "invalid@ons.gov.uk")
-			request := httptest.NewRequest(http.MethodPost, "/florence/login", strings.NewReader(formData.Encode()))
+			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, strings.NewReader(formData.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			responseRecorder := httptest.NewRecorder()
 
@@ -182,13 +185,13 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When a valid POST request is made without a redirect URL", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
+			handler := FlorenceLoginHandlerPOST(ctx, usersTestJSON, privateKey)
 
 			formData := url.Values{}
 			formData.Set("username", "admin@ons.gov.uk")
-			formData.Set("redirect", "/florence/collections")
+			formData.Set("redirect", florenceCollectionsURL)
 
-			request := httptest.NewRequest(http.MethodPost, "/florence/login", strings.NewReader(formData.Encode()))
+			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, strings.NewReader(formData.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			responseRecorder := httptest.NewRecorder()
 
@@ -199,7 +202,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 			})
 
 			Convey("And the response should contain a default redirect location", func() {
-				So(responseRecorder.Header().Get("Location"), ShouldEqual, "/florence/collections")
+				So(responseRecorder.Header().Get("Location"), ShouldEqual, florenceCollectionsURL)
 			})
 
 			Convey("And the response should set access, ID, and refresh token cookies", func() {
@@ -208,13 +211,13 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 
 				var accessToken, idToken, refreshToken *http.Cookie
 				for _, cookie := range cookies {
-					if cookie.Name == "access_token" {
+					if cookie.Name == models.AccessTokenCookie {
 						accessToken = cookie
 					}
-					if cookie.Name == "id_token" {
+					if cookie.Name == models.IDTokenCookie {
 						idToken = cookie
 					}
-					if cookie.Name == "refresh_token" {
+					if cookie.Name == models.RefreshTokenCookie {
 						refreshToken = cookie
 					}
 				}
@@ -226,7 +229,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When a valid POST request is made with a redirect URL", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, users_test_json, private_key)
+			handler := FlorenceLoginHandlerPOST(ctx, usersTestJSON, privateKey)
 
 			formData := url.Values{}
 			formData.Set("username", "admin@ons.gov.uk")
@@ -251,13 +254,13 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 
 				var accessToken, idToken, refreshToken *http.Cookie
 				for _, cookie := range cookies {
-					if cookie.Name == "access_token" {
+					if cookie.Name == models.AccessTokenCookie {
 						accessToken = cookie
 					}
-					if cookie.Name == "id_token" {
+					if cookie.Name == models.IDTokenCookie {
 						idToken = cookie
 					}
-					if cookie.Name == "refresh_token" {
+					if cookie.Name == models.RefreshTokenCookie {
 						refreshToken = cookie
 					}
 				}
@@ -269,10 +272,10 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When the users file is missing", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/invalid_users.json", private_key)
+			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/invalid_users.json", privateKey)
 			formData := url.Values{}
 			formData.Set("username", "admin@ons.gov.uk")
-			request := httptest.NewRequest(http.MethodPost, "/florence/login", strings.NewReader(formData.Encode()))
+			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, strings.NewReader(formData.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			responseRecorder := httptest.NewRecorder()
 
@@ -287,7 +290,7 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/invalid_users.json", "../static/keys/invalid_private.key")
 			formData := url.Values{}
 			formData.Set("username", "admin@ons.gov.uk")
-			request := httptest.NewRequest(http.MethodPost, "/florence/login", strings.NewReader(formData.Encode()))
+			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, strings.NewReader(formData.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			responseRecorder := httptest.NewRecorder()
 
@@ -297,7 +300,6 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 				So(responseRecorder.Code, ShouldEqual, http.StatusBadRequest)
 			})
 		})
-
 	})
 }
 
@@ -306,7 +308,7 @@ func TestGenerateJWT(t *testing.T) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 
-		publicKeyData, err := os.ReadFile(public_key)
+		publicKeyData, err := os.ReadFile(publicKey)
 		So(err, ShouldBeNil)
 
 		publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyData)
@@ -327,7 +329,7 @@ func TestGenerateJWT(t *testing.T) {
 		}
 
 		Convey("When generating an access token", func() {
-			tokenString := generateJWT(testUser, "access", *cfg, private_key)
+			tokenString := generateJWT(testUser, "access", *cfg, privateKey)
 
 			Convey("Then it should return a valid JWT string", func() {
 				token, err := jwt.Parse(tokenString, keyFunc)
@@ -347,7 +349,7 @@ func TestGenerateJWT(t *testing.T) {
 		})
 
 		Convey("When generating an id token", func() {
-			tokenString := generateJWT(testUser, "id", *cfg, private_key)
+			tokenString := generateJWT(testUser, "id", *cfg, privateKey)
 
 			Convey("Then it should return a valid JWT string", func() {
 				token, err := jwt.Parse(tokenString, keyFunc)
@@ -370,7 +372,7 @@ func TestGenerateJWT(t *testing.T) {
 		})
 
 		Convey("When generating a token with an invalid token type", func() {
-			tokenString := generateJWT(testUser, "invalidType", *cfg, private_key)
+			tokenString := generateJWT(testUser, "invalidType", *cfg, privateKey)
 
 			Convey("Then it should return a JWT string without token-specific claims", func() {
 				token, err := jwt.Parse(tokenString, keyFunc)
@@ -421,11 +423,10 @@ func TestTokenSelfGetHandler(t *testing.T) {
 
 		Convey("When the template loads and renders successfully", func() {
 			validTemplatePath := "../templates"
-			validFilename := "delete.token.html"
 
-			handler := TokenSelfGetHandler(ctx, validTemplatePath, validFilename)
+			handler := TokenSelfGetHandler(ctx, validTemplatePath, validTemplateFilename)
 
-			request := httptest.NewRequest(http.MethodGet, "/tokens/self", nil)
+			request := httptest.NewRequest(http.MethodGet, tokensSelfEndpoint, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -441,11 +442,10 @@ func TestTokenSelfGetHandler(t *testing.T) {
 
 		Convey("When the template does not load successfully", func() {
 			invalidTemplatePath := "templates"
-			validFilename := "delete.token.html"
 
-			handler := TokenSelfGetHandler(ctx, invalidTemplatePath, validFilename)
+			handler := TokenSelfGetHandler(ctx, invalidTemplatePath, validTemplateFilename)
 
-			request := httptest.NewRequest(http.MethodGet, "/tokens/self", nil)
+			request := httptest.NewRequest(http.MethodGet, tokensSelfEndpoint, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -454,7 +454,6 @@ func TestTokenSelfGetHandler(t *testing.T) {
 				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
 			})
 		})
-
 	})
 }
 
@@ -464,7 +463,7 @@ func TestTokenSelfDeleteHandler(t *testing.T) {
 		handler := TokenSelfDeleteHandler(ctx)
 
 		Convey("When the refresh token cookie is missing", func() {
-			request := httptest.NewRequest(http.MethodDelete, "/tokens/self", nil)
+			request := httptest.NewRequest(http.MethodDelete, tokensSelfEndpoint, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -475,8 +474,8 @@ func TestTokenSelfDeleteHandler(t *testing.T) {
 		})
 
 		Convey("When the refresh token is not in the in-memory store", func() {
-			request := httptest.NewRequest(http.MethodDelete, "/tokens/self", nil)
-			request.AddCookie(&http.Cookie{Name: "refresh_token", Value: "invalid-token"})
+			request := httptest.NewRequest(http.MethodDelete, tokensSelfEndpoint, http.NoBody)
+			request.AddCookie(&http.Cookie{Name: models.RefreshTokenCookie, Value: "invalid-token"})
 			responseRecorder := httptest.NewRecorder()
 
 			delete(models.RefreshTokenStore, "invalid-token")
@@ -489,45 +488,43 @@ func TestTokenSelfDeleteHandler(t *testing.T) {
 		})
 
 		Convey("When the refresh token is valid", func() {
-			request := httptest.NewRequest(http.MethodDelete, "/tokens/self", nil)
+			request := httptest.NewRequest(http.MethodDelete, tokensSelfEndpoint, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
-			refresh_token := "validRefreshToken"
-
-			request.AddCookie(&http.Cookie{Name: "refresh_token", Value: refresh_token, Path: "/"})
+			request.AddCookie(&http.Cookie{Name: models.RefreshTokenCookie, Value: defaultValidRefreshToken, Path: "/"})
 
 			cfg, err := config.Get()
 			So(err, ShouldBeNil)
 
-			models.RefreshTokenStore[refresh_token] = models.RefreshTokenInfo{
+			models.RefreshTokenStore[defaultValidRefreshToken] = models.RefreshTokenInfo{
 				Username:      "Valid",
 				AuthTime:      time.Now(),
 				SessionExpiry: time.Now().Add(cfg.RefreshTokenValidityDuration),
 			}
 
 			// Assert refresh token was added to in-memory store
-			_, exists := models.RefreshTokenStore[refresh_token]
+			_, exists := models.RefreshTokenStore[defaultValidRefreshToken]
 			So(exists, ShouldBeTrue)
 
 			handler.ServeHTTP(responseRecorder, request)
 
 			Convey("Then it should return 204 No Content and remove the refresh token from the store", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusNoContent)
-				_, exists := models.RefreshTokenStore[refresh_token]
+				_, exists := models.RefreshTokenStore[defaultValidRefreshToken]
 				So(exists, ShouldBeFalse)
 			})
 
-			Convey("And it should set expired cookies for access_token, id_token, and refresh_token", func() {
+			Convey("And it should set expired cookies for access_token, id_token, and refreshToken", func() {
 				cookies := responseRecorder.Result().Cookies()
 
 				var accessToken, idToken, refreshToken *http.Cookie
 				for _, cookie := range cookies {
 					switch cookie.Name {
-					case "access_token":
+					case models.AccessTokenCookie:
 						accessToken = cookie
-					case "id_token":
+					case models.IDTokenCookie:
 						idToken = cookie
-					case "refresh_token":
+					case models.RefreshTokenCookie:
 						refreshToken = cookie
 					}
 				}
@@ -554,7 +551,7 @@ func TestTokenSelfPutHandler(t *testing.T) {
 		handler := TokenSelfPutHandler(ctx)
 
 		Convey("When the refresh token cookie is missing", func() {
-			request := httptest.NewRequest(http.MethodPut, "/tokens/self", nil)
+			request := httptest.NewRequest(http.MethodPut, tokensSelfEndpoint, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -565,8 +562,8 @@ func TestTokenSelfPutHandler(t *testing.T) {
 		})
 
 		Convey("When the refresh token is invalid or expired", func() {
-			request := httptest.NewRequest(http.MethodPut, "/tokens/self", nil)
-			request.AddCookie(&http.Cookie{Name: "refresh_token", Value: "invalid_token", Path: "/"})
+			request := httptest.NewRequest(http.MethodPut, tokensSelfEndpoint, http.NoBody)
+			request.AddCookie(&http.Cookie{Name: models.RefreshTokenCookie, Value: "invalid_token", Path: "/"})
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -576,18 +573,16 @@ func TestTokenSelfPutHandler(t *testing.T) {
 			})
 		})
 
-		Convey("When the refresh_token is valid", func() {
-			request := httptest.NewRequest(http.MethodPut, "/tokens/self", nil)
+		Convey("When the refreshToken is valid", func() {
+			request := httptest.NewRequest(http.MethodPut, tokensSelfEndpoint, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
-			refresh_token := "validRefreshToken"
-
-			request.AddCookie(&http.Cookie{Name: "refresh_token", Value: refresh_token, Path: "/"})
+			request.AddCookie(&http.Cookie{Name: models.RefreshTokenCookie, Value: defaultValidRefreshToken, Path: "/"})
 
 			cfg, err := config.Get()
 			So(err, ShouldBeNil)
 
-			models.RefreshTokenStore[refresh_token] = models.RefreshTokenInfo{
+			models.RefreshTokenStore[defaultValidRefreshToken] = models.RefreshTokenInfo{
 				Username:      "Valid",
 				AuthTime:      time.Now(),
 				SessionExpiry: time.Now().Add(cfg.RefreshTokenValidityDuration),
@@ -604,15 +599,15 @@ func TestTokenSelfPutHandler(t *testing.T) {
 				var accessToken, idToken *http.Cookie
 				for _, cookie := range cookies {
 					switch cookie.Name {
-					case "access_token":
+					case models.AccessTokenCookie:
 						accessToken = cookie
-					case "id_token":
+					case models.IDTokenCookie:
 						idToken = cookie
 					}
 				}
 
 				So(accessToken, ShouldNotBeNil)
-				So(accessToken.Value, ShouldStartWith, "Bearer ")
+				So(accessToken.Value, ShouldStartWith, BearerPrefix)
 				So(accessToken.HttpOnly, ShouldBeTrue)
 
 				So(idToken, ShouldNotBeNil)
@@ -629,7 +624,7 @@ func TestIdentifyUser(t *testing.T) {
 		handler := IdentifyUser(ctx)
 
 		Convey("When the Authorization header is missing", func() {
-			request := httptest.NewRequest(http.MethodGet, "/identity", nil)
+			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -640,7 +635,7 @@ func TestIdentifyUser(t *testing.T) {
 		})
 
 		Convey("When the Authorization header has an invalid service token", func() {
-			request := httptest.NewRequest(http.MethodGet, "/identity", nil)
+			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
 			request.Header.Set("Authorization", "Bearer invalid-token")
 			responseRecorder := httptest.NewRecorder()
 
@@ -652,12 +647,12 @@ func TestIdentifyUser(t *testing.T) {
 		})
 
 		Convey("When the Authorization header has an valid service token", func() {
-			request := httptest.NewRequest(http.MethodGet, "/identity", nil)
+			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
 
 			cfg, err := config.Get()
 			So(err, ShouldBeNil)
 
-			existingAuthToken := "Bearer " + cfg.ZebedeeAuthToken
+			existingAuthToken := BearerPrefix + cfg.ZebedeeAuthToken
 
 			request.Header.Set("Authorization", existingAuthToken)
 			responseRecorder := httptest.NewRecorder()

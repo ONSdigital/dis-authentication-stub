@@ -45,7 +45,7 @@ func TestRun(t *testing.T) {
 
 		hcMock := &mock.HealthCheckerMock{
 			AddCheckFunc: func(name string, checker healthcheck.Checker) error { return nil },
-			StartFunc:    func(ctx context.Context) {},
+			StartFunc:    func(ctx context.Context) { /* stub function */ },
 		}
 
 		serverWg := &sync.WaitGroup{}

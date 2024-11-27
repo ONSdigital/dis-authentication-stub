@@ -14,24 +14,24 @@ import (
 )
 
 func LoadUsers(ctx context.Context, filename string) ([]models.User, error) {
-	usersJsonFile, err := os.Open(filename)
+	usersJSONfile, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(ctx, fmt.Sprintf("could not open file %s", filename), err)
 		return nil, err
 	}
-	defer usersJsonFile.Close()
+	defer usersJSONfile.Close()
 
-	usersJsonFileBytes, err := io.ReadAll(usersJsonFile)
+	usersJSONFileBytes, err := io.ReadAll(usersJSONfile)
 	if err != nil {
-		log.Fatal(ctx, fmt.Sprintf("could not read from file %s", filename), err)
+		log.Error(ctx, fmt.Sprintf("could not read from file %s", filename), err)
 		return nil, err
 	}
 
 	var users []models.User
 
-	err = json.Unmarshal(usersJsonFileBytes, &users)
+	err = json.Unmarshal(usersJSONFileBytes, &users)
 	if err != nil {
-		log.Fatal(ctx, fmt.Sprintf("could not unmarshal JSON from file %s", filename), err)
+		log.Error(ctx, fmt.Sprintf("could not unmarshal JSON from file %s", filename), err)
 		return nil, err
 	}
 
@@ -41,14 +41,14 @@ func LoadUsers(ctx context.Context, filename string) ([]models.User, error) {
 func LoadJwtKeys(ctx context.Context, filename string) ([]models.Response, error) {
 	jwtKeysFile, err := os.Open(filename)
 	if err != nil {
-		log.Fatal(ctx, fmt.Sprintf("could not open file %s", filename), err)
+		log.Error(ctx, fmt.Sprintf("could not open file %s", filename), err)
 		return nil, err
 	}
 	defer jwtKeysFile.Close()
 
 	jwtKeysFileBytes, err := io.ReadAll(jwtKeysFile)
 	if err != nil {
-		log.Fatal(ctx, fmt.Sprintf("could not read from file %s", filename), err)
+		log.Error(ctx, fmt.Sprintf("could not read from file %s", filename), err)
 		return nil, err
 	}
 
@@ -56,7 +56,7 @@ func LoadJwtKeys(ctx context.Context, filename string) ([]models.Response, error
 
 	err = json.Unmarshal(jwtKeysFileBytes, &keys)
 	if err != nil {
-		log.Fatal(ctx, fmt.Sprintf("could not unmarshal JSON from file %s", filename), err)
+		log.Error(ctx, fmt.Sprintf("could not unmarshal JSON from file %s", filename), err)
 		return nil, err
 	}
 
@@ -85,9 +85,9 @@ func VerifyUser(ctx context.Context, filename, email string) (*models.User, erro
 
 func GetServiceAuthTokens(cfg config.Config) map[string]string {
 	return map[string]string{
-		cfg.DatasetApiAuthToken:          "dp-dataset-api",
+		cfg.DatasetAPIAuthToken:          "dp-dataset-api",
 		cfg.DownloadServiceAuthToken:     "dp-download-service",
-		cfg.FilterApiAuthToken:           "dp-filter-api",
+		cfg.FilterAPIAuthToken:           "dp-filter-api",
 		cfg.StaticFilePublisherAuthToken: "dp-static-file-publisher",
 		cfg.UploadServiceAuthToken:       "dp-upload-service",
 		cfg.ZebedeeAuthToken:             "zebedee",

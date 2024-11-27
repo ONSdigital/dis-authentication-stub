@@ -11,10 +11,14 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+const (
+	nonExistentFile = "nonexistent_file.json"
+	usersTestJSON   = "../static/json/users_test.json"
+)
+
 func TestLoadUsers(t *testing.T) {
 	Convey("Given a context and filename", t, func() {
 		ctx := context.Background()
-		filename := "../static/json/users_test.json"
 
 		expectedUsers := []models.User{
 			{
@@ -34,7 +38,7 @@ func TestLoadUsers(t *testing.T) {
 		}
 
 		Convey("When LoadUsers is called", func() {
-			users, err := utils.LoadUsers(ctx, filename)
+			users, err := utils.LoadUsers(ctx, usersTestJSON)
 
 			Convey("Then it should return the expected users without error", func() {
 				So(err, ShouldBeNil)
@@ -43,7 +47,7 @@ func TestLoadUsers(t *testing.T) {
 		})
 
 		Convey("When the filename is incorrect or doesn't exist", func() {
-			invalidFilename := "nonexistent_file.json"
+			invalidFilename := nonExistentFile
 			user, err := utils.LoadUsers(ctx, invalidFilename)
 
 			Convey("Then it should return a 'no such file or directory' error", func() {
@@ -75,15 +79,15 @@ func TestLoadUsers(t *testing.T) {
 
 	Convey("Given a context and file with invalid JSON format", t, func() {
 		ctx := context.Background()
-		invalidJsonFilename := "../static/json/invalid_format.json"
+		invalidJSONFilename := "../static/json/invalid_format.json"
 
-		invalidJsonContent := `{"email": "example@ons.gov.uk"}`
-		err := os.WriteFile(invalidJsonFilename, []byte(invalidJsonContent), 0644)
+		invalidJSONContent := `{"email": "example@ons.gov.uk"}`
+		err := os.WriteFile(invalidJSONFilename, []byte(invalidJSONContent), 0644)
 		So(err, ShouldBeNil)
-		defer os.Remove(invalidJsonFilename)
+		defer os.Remove(invalidJSONFilename)
 
 		Convey("When LoadUsers is called", func() {
-			users, err := utils.LoadUsers(ctx, invalidJsonFilename)
+			users, err := utils.LoadUsers(ctx, invalidJSONFilename)
 
 			Convey("Then it should return an error indicating the JSON could not be unmarshaled", func() {
 				So(err, ShouldNotBeNil)
@@ -120,7 +124,7 @@ func TestLoadJwtKeys(t *testing.T) {
 		})
 
 		Convey("When the filename is incorrect or doesn't exist", func() {
-			invalidFilename := "nonexistent_file.json"
+			invalidFilename := nonExistentFile
 			keys, err := utils.LoadJwtKeys(ctx, invalidFilename)
 
 			Convey("Then it should return a 'no such file or directory' error", func() {
@@ -152,15 +156,15 @@ func TestLoadJwtKeys(t *testing.T) {
 
 	Convey("Given a context and file with invalid JSON format", t, func() {
 		ctx := context.Background()
-		invalidJsonFilename := "../static/keys/invalid_format.json"
+		invalidJSONFilename := "../static/keys/invalid_format.json"
 
-		invalidJsonContent := `{"kid": "Key1"}`
-		err := os.WriteFile(invalidJsonFilename, []byte(invalidJsonContent), 0644)
+		invalidJSONContent := `{"kid": "Key1"}`
+		err := os.WriteFile(invalidJSONFilename, []byte(invalidJSONContent), 0644)
 		So(err, ShouldBeNil)
-		defer os.Remove(invalidJsonFilename)
+		defer os.Remove(invalidJSONFilename)
 
 		Convey("When LoadJwtKeys is called", func() {
-			keys, err := utils.LoadJwtKeys(ctx, invalidJsonFilename)
+			keys, err := utils.LoadJwtKeys(ctx, invalidJSONFilename)
 
 			Convey("Then it should return an error indicating the JSON could not be unmarshaled", func() {
 				So(err, ShouldNotBeNil)
@@ -174,7 +178,6 @@ func TestLoadJwtKeys(t *testing.T) {
 func TestVerifyUser(t *testing.T) {
 	Convey("Given a context and filename", t, func() {
 		ctx := context.Background()
-		filename := "../static/json/users_test.json"
 
 		expectedUsers := []models.User{
 			{
@@ -195,7 +198,7 @@ func TestVerifyUser(t *testing.T) {
 
 		Convey("When the email exists in the user list", func() {
 			email := "admin@ons.gov.uk"
-			user, err := utils.VerifyUser(ctx, filename, email)
+			user, err := utils.VerifyUser(ctx, usersTestJSON, email)
 
 			Convey("Then it should return the corresponding user without error", func() {
 				So(err, ShouldBeNil)
@@ -210,7 +213,7 @@ func TestVerifyUser(t *testing.T) {
 
 		Convey("When the email does not exist in the user list", func() {
 			email := "nonexistent@ons.gov.uk"
-			user, err := utils.VerifyUser(ctx, filename, email)
+			user, err := utils.VerifyUser(ctx, usersTestJSON, email)
 
 			Convey("Then it should return a 'user not found' error", func() {
 				So(err, ShouldNotBeNil)
@@ -220,7 +223,7 @@ func TestVerifyUser(t *testing.T) {
 		})
 
 		Convey("When the filename is incorrect or doesn't exist", func() {
-			invalidFilename := "nonexistent_file.json"
+			invalidFilename := nonExistentFile
 			user, err := utils.VerifyUser(ctx, invalidFilename, "admin@ons.gov.uk")
 
 			Convey("Then it should return a 'no such file or directory' error", func() {
@@ -242,9 +245,9 @@ func TestGetServiceAuthTokens(t *testing.T) {
 
 			Convey("Then it should return a map with the expected service names and tokens", func() {
 				expected := map[string]string{
-					cfg.DatasetApiAuthToken:          "dp-dataset-api",
+					cfg.DatasetAPIAuthToken:          "dp-dataset-api",
 					cfg.DownloadServiceAuthToken:     "dp-download-service",
-					cfg.FilterApiAuthToken:           "dp-filter-api",
+					cfg.FilterAPIAuthToken:           "dp-filter-api",
 					cfg.StaticFilePublisherAuthToken: "dp-static-file-publisher",
 					cfg.UploadServiceAuthToken:       "dp-upload-service",
 					cfg.ZebedeeAuthToken:             "zebedee",
