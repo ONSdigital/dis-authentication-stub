@@ -11,7 +11,6 @@ To run the service locally:
 Additional Commands:
 
 * Run `make help` to see full list of make targets
-* Run `make prep` to decrypt the necessary files to run the service
 
 ### Dependencies
 
