@@ -426,15 +426,15 @@ func TestTokenSelfDeleteHandler(t *testing.T) {
 
 				So(accessToken, ShouldNotBeNil)
 				So(accessToken.Expires.Before(time.Now()), ShouldBeTrue)
-				So(accessToken.MaxAge, ShouldEqual, -1)
+				So(accessToken.MaxAge, ShouldEqual, 0)
 
 				So(idToken, ShouldNotBeNil)
 				So(idToken.Expires.Before(time.Now()), ShouldBeTrue)
-				So(idToken.MaxAge, ShouldEqual, -1)
+				So(idToken.MaxAge, ShouldEqual, 0)
 
 				So(refreshToken, ShouldNotBeNil)
 				So(refreshToken.Expires.Before(time.Now()), ShouldBeTrue)
-				So(refreshToken.MaxAge, ShouldEqual, -1)
+				So(refreshToken.MaxAge, ShouldEqual, 0)
 			})
 		})
 	})
@@ -515,7 +515,7 @@ func TestTokenSelfPutHandler(t *testing.T) {
 
 				So(idToken, ShouldNotBeNil)
 				So(idToken.Value, ShouldNotBeEmpty)
-				So(idToken.HttpOnly, ShouldBeTrue)
+				So(idToken.HttpOnly, ShouldBeFalse)
 			})
 		})
 	})

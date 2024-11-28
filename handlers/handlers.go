@@ -123,9 +123,9 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		}
 
 		// add to header
-		http.SetCookie(w, &http.Cookie{Name: models.AccessTokenCookie, Value: accessToken, Path: "/"})
-		http.SetCookie(w, &http.Cookie{Name: models.IDTokenCookie, Value: idToken, Path: "/"})
-		http.SetCookie(w, &http.Cookie{Name: models.RefreshTokenCookie, Value: refreshToken, Path: "/"})
+		setAccessTokenCookie(w, accessToken)
+		setIDTokenCookie(w, idToken)
+		setRefreshTokenCookie(w, refreshToken)
 
 		http.Redirect(w, req, redirect, http.StatusSeeOther)
 	}
@@ -219,35 +219,9 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 		// Remove the session entry from the in-memory store
 		delete(models.RefreshTokenStore, refreshToken)
 
-		// Expire cookies by removing them entirely
-		expiredTime := time.Now().Add(-1 * time.Hour)
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     models.AccessTokenCookie,
-			Value:    "",
-			Path:     "/",
-			Expires:  expiredTime,
-			MaxAge:   -1,
-			HttpOnly: true,
-		})
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     models.IDTokenCookie,
-			Value:    "",
-			Path:     "/",
-			Expires:  expiredTime,
-			MaxAge:   -1,
-			HttpOnly: true,
-		})
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     models.RefreshTokenCookie,
-			Value:    "",
-			Path:     "/",
-			Expires:  expiredTime,
-			MaxAge:   -1,
-			HttpOnly: true,
-		})
+		invalidateAccessTokenCookie(w)
+		invalidateIDTokenCookie(w)
+		invalidateRefreshTokenCookie(w)
 
 		// Respond with no content
 		w.WriteHeader(http.StatusNoContent)
@@ -294,19 +268,8 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 		}
 
 		// Set new tokens as cookies
-		http.SetCookie(w, &http.Cookie{
-			Name:     models.AccessTokenCookie,
-			Value:    newAccessToken,
-			Path:     "/",
-			HttpOnly: true,
-		})
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     models.IDTokenCookie,
-			Value:    newIDToken,
-			Path:     "/",
-			HttpOnly: true,
-		})
+		setAccessTokenCookie(w, newAccessToken)
+		setIDTokenCookie(w, newIDToken)
 
 		// Respond with a 200 OK status
 		w.WriteHeader(http.StatusOK)
@@ -342,4 +305,59 @@ func IdentifyUser(ctx context.Context) http.HandlerFunc {
 		// Service token did not match with any in config
 		w.WriteHeader(http.StatusForbidden)
 	}
+}
+
+func invalidateAccessTokenCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     models.AccessTokenCookie,
+		Expires:  time.Unix(0, 0),
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+	})
+}
+
+func setAccessTokenCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     models.AccessTokenCookie,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+	})
+}
+
+func invalidateRefreshTokenCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     models.RefreshTokenCookie,
+		Expires:  time.Unix(0, 0),
+		Value:    "",
+		Path:     models.RefreshTokenCookiePath,
+		HttpOnly: true,
+	})
+}
+
+func setRefreshTokenCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     models.RefreshTokenCookie,
+		Value:    token,
+		Path:     models.RefreshTokenCookiePath,
+		HttpOnly: true,
+	})
+}
+
+func invalidateIDTokenCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:    models.IDTokenCookie,
+		Expires: time.Unix(0, 0),
+		Value:   "",
+		Path:    "/",
+	})
+}
+
+func setIDTokenCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:  models.IDTokenCookie,
+		Value: token,
+		Path:  "/",
+	})
 }
