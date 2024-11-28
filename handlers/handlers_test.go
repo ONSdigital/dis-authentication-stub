@@ -283,7 +283,7 @@ func TestGenerateJWT(t *testing.T) {
 				So(ok, ShouldBeTrue)
 
 				So(claims["sub"], ShouldEqual, testUser.Username)
-				So(claims["cognito:groups"], ShouldContain, "group1")
+				So(claims["cognito:groups"], ShouldContain, "role-admin")
 				So(claims["auth_time"], ShouldBeBetweenOrEqual, time.Now().Unix(), time.Now().Unix()-10)
 				So(claims["iat"], ShouldBeBetweenOrEqual, time.Now().Unix(), time.Now().Unix()-10)
 				So(claims["username"], ShouldEqual, testUser.Username)
@@ -307,7 +307,7 @@ func TestGenerateJWT(t *testing.T) {
 				So(ok, ShouldBeTrue)
 
 				So(claims["sub"], ShouldEqual, testUser.Username)
-				So(claims["cognito:groups"], ShouldContain, "group1")
+				So(claims["cognito:groups"], ShouldContain, "role-admin")
 				So(claims["auth_time"], ShouldBeBetweenOrEqual, time.Now().Unix(), time.Now().Unix()-10)
 				So(claims["iat"], ShouldBeBetweenOrEqual, time.Now().Unix(), time.Now().Unix()-10)
 				So(claims["cognito:username"], ShouldEqual, testUser.Username)

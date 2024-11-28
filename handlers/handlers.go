@@ -161,7 +161,7 @@ func generateJWT(store static.Store, user models.User, claims jwt.MapClaims, val
 	kids := store.GetKids()
 
 	claims["auth_time"] = time.Now().Unix()         // Auth time
-	claims["cognito:groups"] = []string{"group1"}   // Example Group TODO: pull this from somewhere
+	claims["cognito:groups"] = user.Groups          // Example Group TODO: pull this from somewhere
 	claims["iat"] = time.Now().Unix()               // Issued at
 	claims["sub"] = user.Username                   // subject (username)
 	claims["exp"] = time.Now().Add(validity).Unix() // Expires at
