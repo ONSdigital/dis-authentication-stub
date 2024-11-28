@@ -2,47 +2,54 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"errors"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/models"
+	"github.com/ONSdigital/dis-authentication-stub/static/mock"
 	"github.com/golang-jwt/jwt"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
-	usersTestJSON          = "../static/json/users_test.json"
-	userLoginHTML          = "../templates/user.login.html"
-	privateKey             = "../static/keys/private.key"
-	publicKey              = "../static/keys/public.key"
 	florenceLoginURL       = "/florence/login"
 	florenceCollectionsURL = "/florence/collections"
 	tokensSelfEndpoint     = "/tokens/self"
 
 	defaultValidRefreshToken = "validRefreshToken"
-	validTemplateFilename    = "delete.token.html"
+	mockKID                  = "fakekid"
+)
+
+var (
+	testUser = models.User{
+		Email:    "admin@ons.gov.uk",
+		Username: "c6a20lbf-30eb-0235-b621-ke2aw87dd385",
+		Forename: "John",
+		Surname:  "Smith",
+		Groups:   []string{"role-admin"},
+	}
 )
 
 func TestJWTKeysHandler_Success(t *testing.T) {
-	Convey("Given a JWTKeysHandler", t, func() {
-		// mock LoadJwtKeys
-		mockLoadJwtKeys := func(ctx context.Context, filename string) ([]models.Response, error) {
-			return []models.Response{
-				{Kid: "key_id_1", Key: "key1"},
-				{Kid: "key_id_2", Key: "key2"},
-			}, nil
+	Convey("Given a JWTKeysHandler and a mocked store", t, func() {
+		mockKeys := map[string]string{
+			"key_id_1": "key",
 		}
-
-		handler := JWTKeysHandler(context.Background(), mockLoadJwtKeys)
+		mockStore := &mock.StoreMock{
+			GetJWKsFunc: func() map[string]string { return mockKeys },
+		}
+		handler := JWTKeysHandler(context.Background(), mockStore)
 
 		Convey("When we make a GET request to the /jwt-keys endpoint", func() {
 			request, err := http.NewRequest(http.MethodGet, "/jwt-keys", http.NoBody)
@@ -51,52 +58,41 @@ func TestJWTKeysHandler_Success(t *testing.T) {
 			responseRecorder := httptest.NewRecorder()
 			handler.ServeHTTP(responseRecorder, request)
 
-			Convey("Then we have a response 200 and the expected keys", func() {
-				expected := map[string]string{
-					"key_id_1": "key1",
-					"key_id_2": "key2",
-				}
+			Convey("Then the store should be called to get the keys", func() {
+				So(mockStore.GetJWKsCalls(), ShouldHaveLength, 1)
+			})
+
+			Convey("And the server should serve the keys", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
 
 				var result map[string]string
 				err = json.NewDecoder(responseRecorder.Body).Decode(&result)
 				So(err, ShouldBeNil)
-				So(result, ShouldResemble, expected)
-				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
-			})
-		})
-	})
-}
-
-func TestJWTKeysHandler_Error(t *testing.T) {
-	Convey("Given a JWTKeysHandler and LoadJwtKeys func returns an error", t, func() {
-		// mock LoadJwtKeys
-		mockLoadJwtKeys := func(ctx context.Context, filename string) ([]models.Response, error) {
-			return nil, errors.New("failed to load jwt keys")
-		}
-
-		handler := JWTKeysHandler(context.Background(), mockLoadJwtKeys)
-
-		Convey("When we make a GET request to the /jwt-keys endpoint", func() {
-			request, err := http.NewRequest(http.MethodGet, "/jwt-keys", http.NoBody)
-			So(err, ShouldBeNil)
-
-			responseRecorder := httptest.NewRecorder()
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then we have a 500 response", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
+				So(result, ShouldResemble, mockKeys)
 			})
 		})
 	})
 }
 
 func TestFlorenceLoginHandler(t *testing.T) {
-	Convey("Given a context, usersFile, templateFile and a FlorenceLoginHandler", t, func() {
+	Convey("Given a context, a mock Store that returns a user and a FlorenceLoginHandler", t, func() {
 		ctx := context.Background()
+		mockContent := "Hello World"
+		mockTemplate, err := template.New("foo").Parse(mockContent)
+		So(err, ShouldBeNil)
 
-		Convey("When a valid GET request is made with a redirect URL", func() {
-			handler := FlorenceLoginHandler(ctx, usersTestJSON, userLoginHTML)
-			request := httptest.NewRequest(http.MethodGet, "/florence/login?redirect=/some/path", http.NoBody)
+		mockStore := &mock.StoreMock{
+			GetUsersFunc: func() ([]models.User, error) {
+				return []models.User{
+					testUser,
+				}, nil
+			},
+			GetUserLoginTemplateFunc: func() (*template.Template, error) { return mockTemplate, nil },
+		}
+
+		Convey("When a user requests the login page", func() {
+			handler := FlorenceLoginHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, "/florence/login", http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)
@@ -105,60 +101,32 @@ func TestFlorenceLoginHandler(t *testing.T) {
 				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
 			})
 
-			Convey("And the response should contain the redirect URL and user data", func() {
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "/some/path")
-				So(responseRecorder.Body.String(), ShouldContainSubstring, "admin@ons.gov.uk")
-			})
-		})
-
-		Convey("When a valid GET request is made without a redirect URL", func() {
-			handler := FlorenceLoginHandler(ctx, usersTestJSON, userLoginHTML)
-			request := httptest.NewRequest(http.MethodGet, florenceLoginURL, http.NoBody)
-			responseRecorder := httptest.NewRecorder()
-
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 200 OK", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
+			Convey("Then the store should be called to get the users", func() {
+				So(mockStore.GetUsersCalls(), ShouldHaveLength, 1)
 			})
 
-			Convey("And the response should contain the default redirect URL", func() {
-				So(responseRecorder.Body.String(), ShouldContainSubstring, florenceCollectionsURL)
-			})
-		})
-
-		Convey("When the users file is missing", func() {
-			Handler := FlorenceLoginHandler(ctx, "../static/json/invalid_users.json", userLoginHTML)
-			request := httptest.NewRequest(http.MethodGet, florenceLoginURL, http.NoBody)
-			responseRecorder := httptest.NewRecorder()
-
-			Handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 500 Internal Server Error", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
-			})
-		})
-
-		Convey("When the template file is missing", func() {
-			Handler := FlorenceLoginHandler(ctx, usersTestJSON, "../templates/invalid_template.html")
-			request := httptest.NewRequest(http.MethodGet, florenceLoginURL, http.NoBody)
-			responseRecorder := httptest.NewRecorder()
-
-			Handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 500 Internal Server Error", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
+			Convey("And the response should contain login template", func() {
+				So(responseRecorder.Body.String(), ShouldContainSubstring, mockContent)
 			})
 		})
 	})
 }
 
 func TestFlorenceLoginHandlerPOST(t *testing.T) {
-	Convey("Given a context, usersFile, privateKeyPath and a FlorenceLoginHandlerPOST", t, func() {
+	Convey("Given a context, a mock store that returns a user and a FlorenceLoginHandlerPOST", t, func() {
 		ctx := context.Background()
 
+		mockKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		So(err, ShouldBeNil)
+
+		mockStore := &mock.StoreMock{
+			GetUserFunc:       func(email string) (*models.User, error) { return &testUser, nil },
+			GetPrivateKeyFunc: func() *rsa.PrivateKey { return mockKey },
+			GetKidsFunc:       func() []string { return []string{mockKID} },
+		}
+
 		Convey("When a POST request is made but form data is missing", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, usersTestJSON, privateKey)
+			handler := FlorenceLoginHandlerPOST(ctx, mockStore)
 			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
@@ -169,26 +137,11 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 			})
 		})
 
-		Convey("When a POST request is made but the user is invalid", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, usersTestJSON, privateKey)
-			formData := url.Values{}
-			formData.Set("username", "invalid@ons.gov.uk")
-			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, strings.NewReader(formData.Encode()))
-			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			responseRecorder := httptest.NewRecorder()
-
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 400 Bad Request", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusBadRequest)
-			})
-		})
-
 		Convey("When a valid POST request is made without a redirect URL", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, usersTestJSON, privateKey)
+			handler := FlorenceLoginHandlerPOST(ctx, mockStore)
 
 			formData := url.Values{}
-			formData.Set("username", "admin@ons.gov.uk")
+			formData.Set("username", testUser.Email)
 			formData.Set("redirect", florenceCollectionsURL)
 
 			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, strings.NewReader(formData.Encode()))
@@ -229,10 +182,10 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 		})
 
 		Convey("When a valid POST request is made with a redirect URL", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, usersTestJSON, privateKey)
+			handler := FlorenceLoginHandlerPOST(ctx, mockStore)
 
 			formData := url.Values{}
-			formData.Set("username", "admin@ons.gov.uk")
+			formData.Set("username", testUser.Email)
 
 			request := httptest.NewRequest(http.MethodPost, "/florence/login?redirect=/some/path", strings.NewReader(formData.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -270,26 +223,18 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 				So(refreshToken, ShouldNotBeNil)
 			})
 		})
+	})
 
-		Convey("When the users file is missing", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/invalid_users.json", privateKey)
+	Convey("Given a mock store that returns user not found", t, func() {
+		ctx := context.Background()
+		mockStore := &mock.StoreMock{
+			GetUserFunc: func(email string) (*models.User, error) { return nil, errors.New("user not found") },
+		}
+
+		Convey("When a POST request is made to /florence/login", func() {
+			handler := FlorenceLoginHandlerPOST(ctx, mockStore)
 			formData := url.Values{}
-			formData.Set("username", "admin@ons.gov.uk")
-			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, strings.NewReader(formData.Encode()))
-			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			responseRecorder := httptest.NewRecorder()
-
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 400 Bad Request", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusBadRequest)
-			})
-		})
-
-		Convey("When the private key file is missing", func() {
-			handler := FlorenceLoginHandlerPOST(ctx, "../static/json/invalid_users.json", "../static/keys/invalid_private.key")
-			formData := url.Values{}
-			formData.Set("username", "admin@ons.gov.uk")
+			formData.Set("username", "invalid@ons.gov.uk")
 			request := httptest.NewRequest(http.MethodPost, florenceLoginURL, strings.NewReader(formData.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			responseRecorder := httptest.NewRecorder()
@@ -304,32 +249,30 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 }
 
 func TestGenerateJWT(t *testing.T) {
-	Convey("Given a user, tokenType, config and privateKeyPath", t, func() {
+	Convey("Given a user, and a mock store", t, func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 
-		publicKeyData, err := os.ReadFile(publicKey)
+		mockKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		So(err, ShouldBeNil)
 
-		publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyData)
-		So(err, ShouldBeNil)
+		mockStore := &mock.StoreMock{
+			GetUserFunc:       func(email string) (*models.User, error) { return &testUser, nil },
+			GetPrivateKeyFunc: func() *rsa.PrivateKey { return mockKey },
+			GetKidsFunc:       func() []string { return []string{mockKID} },
+		}
 
 		keyFunc := func(token *jwt.Token) (interface{}, error) {
 			_, ok := token.Method.(*jwt.SigningMethodRSA)
 			So(ok, ShouldBeTrue)
-			return publicKey, nil
-		}
-
-		testUser := models.User{
-			Email:    "admin@ons.gov.uk",
-			Username: "c6a20lbf-30eb-0235-b621-ke2aw87dd385",
-			Forename: "John",
-			Surname:  "Smith",
-			Groups:   []string{"role-admin"},
+			return &mockKey.PublicKey, nil
 		}
 
 		Convey("When generating an access token", func() {
-			tokenString := generateJWT(testUser, "access", *cfg, privateKey)
+			accessToken, err := generateAccessTokenJWT(mockStore, testUser, cfg.AccessTokenValidityDuration)
+			So(err, ShouldBeNil)
+
+			tokenString := strings.TrimPrefix(accessToken, BearerPrefix)
 
 			Convey("Then it should return a valid JWT string", func() {
 				token, err := jwt.Parse(tokenString, keyFunc)
@@ -345,11 +288,15 @@ func TestGenerateJWT(t *testing.T) {
 				So(claims["iat"], ShouldBeBetweenOrEqual, time.Now().Unix(), time.Now().Unix()-10)
 				So(claims["username"], ShouldEqual, testUser.Username)
 				So(claims["exp"], ShouldBeBetweenOrEqual, time.Now().Add(cfg.AccessTokenValidityDuration).Unix(), time.Now().Add(cfg.IDTokenValidityDuration).Unix()-10)
+				So(token.Header["kid"], ShouldEqual, mockKID)
 			})
 		})
 
 		Convey("When generating an id token", func() {
-			tokenString := generateJWT(testUser, "id", *cfg, privateKey)
+			idToken, err := generateIDTokenJWT(mockStore, testUser, cfg.IDTokenValidityDuration)
+			So(err, ShouldBeNil)
+
+			tokenString := strings.TrimPrefix(idToken, BearerPrefix)
 
 			Convey("Then it should return a valid JWT string", func() {
 				token, err := jwt.Parse(tokenString, keyFunc)
@@ -368,64 +315,27 @@ func TestGenerateJWT(t *testing.T) {
 				So(claims["family_name"], ShouldEqual, testUser.Surname)
 				So(claims["email"], ShouldEqual, testUser.Username)
 				So(claims["exp"], ShouldBeBetweenOrEqual, time.Now().Add(cfg.IDTokenValidityDuration).Unix(), time.Now().Add(cfg.IDTokenValidityDuration).Unix()-10)
-			})
-		})
-
-		Convey("When generating a token with an invalid token type", func() {
-			tokenString := generateJWT(testUser, "invalidType", *cfg, privateKey)
-
-			Convey("Then it should return a JWT string without token-specific claims", func() {
-				token, err := jwt.Parse(tokenString, keyFunc)
-				So(err, ShouldBeNil)
-				So(token, ShouldNotBeNil)
-
-				claims, ok := token.Claims.(jwt.MapClaims)
-				So(ok, ShouldBeTrue)
-
-				So(claims["sub"], ShouldEqual, testUser.Username)
-				So(claims["cognito:groups"], ShouldContain, "group1")
-				So(claims["auth_time"], ShouldBeBetweenOrEqual, time.Now().Unix(), time.Now().Unix()-10)
-				So(claims["iat"], ShouldBeBetweenOrEqual, time.Now().Unix(), time.Now().Unix()-10)
-				So(claims, ShouldNotContainKey, "username")
-				So(claims, ShouldNotContainKey, "cognito:username")
-				So(claims, ShouldNotContainKey, "given_name")
-				So(claims, ShouldNotContainKey, "family_name")
-				So(claims, ShouldNotContainKey, "email")
-				So(claims, ShouldNotContainKey, "exp")
-			})
-		})
-
-		Convey("When generating a token with an invalid private key path", func() {
-			tokenString := generateJWT(testUser, "access", *cfg, "../static/keys/missing_private.key")
-
-			Convey("Then it should return an error message indicating no such file or directory", func() {
-				So(tokenString, ShouldContainSubstring, "no such file or directory")
-			})
-		})
-
-		Convey("When generating a token with an invalid private key format", func() {
-			invalidPrivateKeyContent := `Not a private key`
-			err := os.WriteFile("../static/keys/invalid_private.key", []byte(invalidPrivateKeyContent), 0644)
-			So(err, ShouldBeNil)
-			defer os.Remove("../static/keys/invalid_private.key")
-			tokenString := generateJWT(testUser, "access", *cfg, "../static/keys/invalid_private.key")
-
-			Convey("Then it should return an error message indicating parsing failure", func() {
-				So(tokenString, ShouldContainSubstring, "Invalid Key")
+				So(token.Header["kid"], ShouldEqual, mockKID)
 			})
 		})
 	})
 }
 
 func TestTokenSelfGetHandler(t *testing.T) {
-	Convey("Given a context, templatePath, filepath and TokenSelfGetHandler", t, func() {
+	Convey("Given a context, a mock store and a TokenSelfGetHandler", t, func() {
 		ctx := context.Background()
 
-		Convey("When the template loads and renders successfully", func() {
-			validTemplatePath := "../templates"
+		mockContent := "Delete world"
+		mockTemplate, err := template.New("foo").Parse(mockContent)
+		So(err, ShouldBeNil)
 
-			handler := TokenSelfGetHandler(ctx, validTemplatePath, validTemplateFilename)
+		mockStore := &mock.StoreMock{
+			GetDeleteTokenTemplateFunc: func() (*template.Template, error) { return mockTemplate, nil },
+		}
 
+		handler := TokenSelfGetHandler(ctx, mockStore)
+
+		Convey("When the the tokens/self endpoint is requested", func() {
 			request := httptest.NewRequest(http.MethodGet, tokensSelfEndpoint, http.NoBody)
 			responseRecorder := httptest.NewRecorder()
 
@@ -437,21 +347,6 @@ func TestTokenSelfGetHandler(t *testing.T) {
 
 			Convey("And the Content-Type should be 'text/html'", func() {
 				So(responseRecorder.Header().Get("Content-Type"), ShouldEqual, "text/html")
-			})
-		})
-
-		Convey("When the template does not load successfully", func() {
-			invalidTemplatePath := "templates"
-
-			handler := TokenSelfGetHandler(ctx, invalidTemplatePath, validTemplateFilename)
-
-			request := httptest.NewRequest(http.MethodGet, tokensSelfEndpoint, http.NoBody)
-			responseRecorder := httptest.NewRecorder()
-
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 500 Internal Server Error", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
 			})
 		})
 	})
@@ -546,9 +441,17 @@ func TestTokenSelfDeleteHandler(t *testing.T) {
 }
 
 func TestTokenSelfPutHandler(t *testing.T) {
-	Convey("Given a context and TokenSelfPutHandler", t, func() {
+	Convey("Given a context, a mock store and TokenSelfPutHandler", t, func() {
 		ctx := context.Background()
-		handler := TokenSelfPutHandler(ctx)
+		mockKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		So(err, ShouldBeNil)
+
+		mockStore := &mock.StoreMock{
+			GetPrivateKeyFunc: func() *rsa.PrivateKey { return mockKey },
+			GetKidsFunc:       func() []string { return []string{mockKID} },
+		}
+
+		handler := TokenSelfPutHandler(ctx, mockStore)
 
 		Convey("When the refresh token cookie is missing", func() {
 			request := httptest.NewRequest(http.MethodPut, tokensSelfEndpoint, http.NoBody)

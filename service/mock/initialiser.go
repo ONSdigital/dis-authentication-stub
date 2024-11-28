@@ -6,6 +6,7 @@ package mock
 import (
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/service"
+	"github.com/ONSdigital/dis-authentication-stub/static"
 	"net/http"
 	"sync"
 )
@@ -26,6 +27,9 @@ var _ service.Initialiser = &InitialiserMock{}
 //			DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 //				panic("mock out the DoGetHealthCheck method")
 //			},
+//			DoGetStoreFunc: func() (static.Store, error) {
+//				panic("mock out the DoGetStore method")
+//			},
 //		}
 //
 //		// use mockedInitialiser in code that requires service.Initialiser
@@ -38,6 +42,9 @@ type InitialiserMock struct {
 
 	// DoGetHealthCheckFunc mocks the DoGetHealthCheck method.
 	DoGetHealthCheckFunc func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error)
+
+	// DoGetStoreFunc mocks the DoGetStore method.
+	DoGetStoreFunc func() (static.Store, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -59,9 +66,13 @@ type InitialiserMock struct {
 			// Version is the version argument value.
 			Version string
 		}
+		// DoGetStore holds details about calls to the DoGetStore method.
+		DoGetStore []struct {
+		}
 	}
 	lockDoGetHTTPServer  sync.RWMutex
 	lockDoGetHealthCheck sync.RWMutex
+	lockDoGetStore       sync.RWMutex
 }
 
 // DoGetHTTPServer calls DoGetHTTPServerFunc.
@@ -141,5 +152,32 @@ func (mock *InitialiserMock) DoGetHealthCheckCalls() []struct {
 	mock.lockDoGetHealthCheck.RLock()
 	calls = mock.calls.DoGetHealthCheck
 	mock.lockDoGetHealthCheck.RUnlock()
+	return calls
+}
+
+// DoGetStore calls DoGetStoreFunc.
+func (mock *InitialiserMock) DoGetStore() (static.Store, error) {
+	if mock.DoGetStoreFunc == nil {
+		panic("InitialiserMock.DoGetStoreFunc: method is nil but Initialiser.DoGetStore was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockDoGetStore.Lock()
+	mock.calls.DoGetStore = append(mock.calls.DoGetStore, callInfo)
+	mock.lockDoGetStore.Unlock()
+	return mock.DoGetStoreFunc()
+}
+
+// DoGetStoreCalls gets all the calls that were made to DoGetStore.
+// Check the length with:
+//
+//	len(mockedInitialiser.DoGetStoreCalls())
+func (mock *InitialiserMock) DoGetStoreCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockDoGetStore.RLock()
+	calls = mock.calls.DoGetStore
+	mock.lockDoGetStore.RUnlock()
 	return calls
 }

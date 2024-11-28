@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" xml:lang="en">
+    <head>
+        <title>Session Management</title>
+    </head>
+    <body>
+        <h1>Session Management</h1>
+        <p>Your session is active.</p>
+        <form id="deleteForm"
+              method="post"
+              action="/tokens/self"
+              onsubmit="event.preventDefault(); deleteSession();">
+            <button type="submit">Delete Session</button>
+        </form>
+        <button id="refreshButton" onclick="refreshSession()">Refresh Session</button>
+        <script>
+        function deleteSession() {
+            fetch('/tokens/self', {
+                method: 'DELETE'
+            }).then(response => {
+                if (response.ok) {
+                    alert('Session deleted successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Failed to delete session.');
+                }
+            });
+        }
+
+        // Function to refresh the session tokens
+        function refreshSession() {
+            fetch('/tokens/self', {
+                method: 'PUT'
+            }).then(response => {
+                if (response.ok) {
+                    alert('Session refreshed successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Failed to refresh session.');
+                }
+            });
+        }
+        </script>
+    </body>
+</html>

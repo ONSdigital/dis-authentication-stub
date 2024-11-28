@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/ONSdigital/dis-authentication-stub/config"
+	"github.com/ONSdigital/dis-authentication-stub/static"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	dphttp "github.com/ONSdigital/dp-net/v2/http"
@@ -42,6 +43,10 @@ func (e *ExternalServiceList) GetHealthCheck(cfg *config.Config, buildTime, gitC
 	return hc, nil
 }
 
+func (e *ExternalServiceList) GetStore() (static.Store, error) {
+	return e.Init.DoGetStore()
+}
+
 // DoGetHTTPServer creates an HTTP Server with the provided bind address and router
 func (e *Init) DoGetHTTPServer(bindAddr string, router http.Handler) HTTPServer {
 	s := dphttp.NewServer(bindAddr, router)
@@ -57,4 +62,9 @@ func (e *Init) DoGetHealthCheck(cfg *config.Config, buildTime, gitCommit, versio
 	}
 	hc := healthcheck.New(versionInfo, cfg.HealthCheckCriticalTimeout, cfg.HealthCheckInterval)
 	return &hc, nil
+}
+
+// DoGetStore creates a Store from the static assets
+func (e *Init) DoGetStore() (static.Store, error) {
+	return static.NewFilestore()
 }

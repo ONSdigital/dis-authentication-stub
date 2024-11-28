@@ -3,15 +3,13 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"html/template"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/models"
+	"github.com/ONSdigital/dis-authentication-stub/static"
 	"github.com/ONSdigital/dis-authentication-stub/utils"
 
 	"github.com/ONSdigital/log.go/v2/log"
@@ -22,46 +20,35 @@ const (
 	BearerPrefix = "Bearer "
 )
 
-func JWTKeysHandler(ctx context.Context, loadKeysFunc func(context.Context, string) ([]models.Response, error)) http.HandlerFunc {
+func JWTKeysHandler(ctx context.Context, store static.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		keys, err := loadKeysFunc(ctx, "static/keys/jwt-keys.json")
-		if err != nil {
-			log.Error(ctx, "Unable to load JWT keys", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		keysMap := make(map[string]string, 2)
-
-		for _, k := range keys {
-			keysMap[k.Kid] = k.Key
-		}
+		keys := store.GetJWKs()
 
 		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(keysMap)
+		err := json.NewEncoder(w).Encode(keys)
 		if err != nil {
-			log.Error(ctx, "Unable to encode keysMap", err)
+			log.Error(ctx, "Unable to encode JWKs", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 }
 
-func FlorenceLoginHandler(ctx context.Context, usersFile, templateFile string) http.HandlerFunc {
+func FlorenceLoginHandler(ctx context.Context, store static.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		redirectURL := req.URL.Query().Get("redirect")
 		if redirectURL == "" {
 			redirectURL = "/florence/collections"
 		}
 
-		users, err := utils.LoadUsers(ctx, usersFile)
+		users, err := store.GetUsers()
 		if err != nil {
 			log.Error(ctx, "Unable to load users", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		tmpl, err := template.ParseFiles(templateFile)
+		tmpl, err := store.GetUserLoginTemplate()
 		if err != nil {
 			log.Error(ctx, "Could not parse template file", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -82,7 +69,7 @@ func FlorenceLoginHandler(ctx context.Context, usersFile, templateFile string) h
 	}
 }
 
-func FlorenceLoginHandlerPOST(ctx context.Context, usersFile, privateKeyPath string) http.HandlerFunc {
+func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		err := req.ParseForm()
 		if err != nil {
@@ -93,14 +80,20 @@ func FlorenceLoginHandlerPOST(ctx context.Context, usersFile, privateKeyPath str
 		// Check both form and query parameters
 		username := req.FormValue("username")
 
+		if username == "" {
+			log.Error(ctx, "No username in request", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		redirect := req.FormValue("redirect")
 		if redirect == "" {
 			redirect = req.URL.Query().Get("redirect")
 		}
-		// Verify the user by email
-		user, err := utils.VerifyUser(ctx, usersFile, username)
+		// Get the user by email
+		user, err := store.GetUser(username)
 		if err != nil {
-			log.Error(ctx, "Invalid user", err)
+			log.Error(ctx, "Couldn't get user", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -108,8 +101,17 @@ func FlorenceLoginHandlerPOST(ctx context.Context, usersFile, privateKeyPath str
 		cfg, _ := config.Get()
 
 		// generate the tokens
-		accessToken := BearerPrefix + generateJWT(*user, "access", *cfg, privateKeyPath)
-		idToken := generateJWT(*user, "id", *cfg, privateKeyPath)
+		accessToken, err := generateAccessTokenJWT(store, *user, cfg.AccessTokenValidityDuration)
+		if err != nil {
+			log.Error(ctx, "Failed to generate access token JWT", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		idToken, err := generateIDTokenJWT(store, *user, cfg.IDTokenValidityDuration)
+		if err != nil {
+			log.Error(ctx, "Failed to generate access token JWT", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 
 		refreshToken := "testrefreshtokennn" // Random opaque token string
 
@@ -129,56 +131,57 @@ func FlorenceLoginHandlerPOST(ctx context.Context, usersFile, privateKeyPath str
 	}
 }
 
-func generateJWT(user models.User, tokenType string, cfg config.Config, privateKeyPath string) string {
-	// RS256
-	privateKeyData, err := os.ReadFile(privateKeyPath)
+func generateAccessTokenJWT(store static.Store, user models.User, validity time.Duration) (string, error) {
+	accessTokenClaims := jwt.MapClaims{
+		"username": user.Username,
+	}
+
+	accessTokenJWT, err := generateJWT(store, user, accessTokenClaims, validity)
 	if err != nil {
-		return err.Error()
+		return "", err
 	}
 
-	// Parse the RSA private key
-	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyData)
-	if err != nil {
-		return err.Error()
-	}
+	accessToken := BearerPrefix + accessTokenJWT
 
-	// Define claims based on the token type (access or id) //retrieve them from users.json
-	claims := jwt.MapClaims{
-		"sub":            user.Username,      // subject (username)
-		"cognito:groups": []string{"group1"}, // Example group
-		"auth_time":      time.Now().Unix(),  // Auth time
-		"iat":            time.Now().Unix(),  // Issued at
-	}
-
-	if tokenType == "access" {
-		// Additional claims for the access token
-		claims["username"] = user.Username
-		claims["exp"] = time.Now().Add(cfg.AccessTokenValidityDuration).Unix()
-	} else if tokenType == "id" {
-		// Additional claims for the ID token
-		claims["cognito:username"] = user.Username
-		claims["given_name"] = user.Forename
-		claims["family_name"] = user.Surname
-		claims["email"] = user.Username
-		claims["exp"] = time.Now().Add(cfg.IDTokenValidityDuration).Unix()
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-
-	// Sign the token with the pvt key
-	tokenString, err := token.SignedString(privateKey)
-	if err != nil {
-		return err.Error()
-	}
-
-	return tokenString
+	return accessToken, nil
 }
 
-func TokenSelfGetHandler(ctx context.Context, templatePath, filename string) http.HandlerFunc {
+func generateIDTokenJWT(store static.Store, user models.User, validity time.Duration) (string, error) {
+	idTokenClaims := jwt.MapClaims{
+		"cognito:username": user.Username,
+		"given_name":       user.Forename,
+		"family_name":      user.Surname,
+		"email":            user.Username,
+	}
+	return generateJWT(store, user, idTokenClaims, validity)
+}
+
+func generateJWT(store static.Store, user models.User, claims jwt.MapClaims, validity time.Duration) (string, error) {
+	privateKey := store.GetPrivateKey()
+	kids := store.GetKids()
+
+	claims["auth_time"] = time.Now().Unix()         // Auth time
+	claims["cognito:groups"] = []string{"group1"}   // Example Group TODO: pull this from somewhere
+	claims["iat"] = time.Now().Unix()               // Issued at
+	claims["sub"] = user.Username                   // subject (username)
+	claims["exp"] = time.Now().Add(validity).Unix() // Expires at
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = kids[0]
+
+	// Sign the token with the private key
+	tokenString, err := token.SignedString(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func TokenSelfGetHandler(ctx context.Context, store static.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		// Load the HTML template
-		tmplPath := filepath.Join(templatePath, filename)
-		tmpl, err := template.ParseFiles(tmplPath)
+		tmpl, err := store.GetDeleteTokenTemplate()
 		if err != nil {
 			log.Error(ctx, "Failed to load template", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -251,7 +254,7 @@ func TokenSelfDeleteHandler(ctx context.Context) http.HandlerFunc {
 	}
 }
 
-func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
+func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		// retrieve refresh_token cookie from the request
 		refreshCookie, err := req.Cookie(models.RefreshTokenCookie)
@@ -278,8 +281,17 @@ func TokenSelfPutHandler(ctx context.Context) http.HandlerFunc {
 		cfg, _ := config.Get()
 
 		// Generate new tokens
-		newAccessToken := BearerPrefix + generateJWT(user, "access", *cfg, "static/keys/private.key")
-		newIDToken := generateJWT(user, "id", *cfg, "static/keys/private.key")
+		newAccessToken, err := generateAccessTokenJWT(store, user, cfg.AccessTokenValidityDuration)
+		if err != nil {
+			log.Error(ctx, "Failed to generate access token JWT", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		newIDToken, err := generateIDTokenJWT(store, user, cfg.IDTokenValidityDuration)
+		if err != nil {
+			log.Error(ctx, "Failed to generate access token JWT", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 
 		// Set new tokens as cookies
 		http.SetCookie(w, &http.Cookie{

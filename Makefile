@@ -68,9 +68,3 @@ help: ## Show help page for list of make targets
 		if (/^[a-zA-Z_-]+:.*?##.*$$/) {printf "    ${YELLOW}%-20s${GREEN}%s${RESET}\n", $$1, $$2} \
 		else if (/^## .*$$/) {printf "  ${CYAN}%s${RESET}\n", substr($$1,4)} \
 		}' $(MAKEFILE_LIST)
-
-.PHONY: prep
-prep: ## Decrypt necessary files to run the service
-	gpg -d static/keys/public.key.asc > static/keys/public.key
-	gpg -d static/keys/private.key.asc > static/keys/private.key
-	gpg -d static/keys/jwt-keys.json.asc > static/keys/jwt-keys.json

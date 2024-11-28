@@ -5,11 +5,10 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ONSdigital/dis-authentication-stub/utils"
-
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/directors"
 	"github.com/ONSdigital/dis-authentication-stub/handlers"
+	"github.com/ONSdigital/dis-authentication-stub/static"
 	"github.com/ONSdigital/dp-net/v2/handlers/reverseproxy"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
@@ -24,6 +23,7 @@ type Service struct {
 	Router      *mux.Router
 	ServiceList *ExternalServiceList
 	HealthCheck HealthChecker
+	Store       static.Store
 }
 
 // Run the service
@@ -63,17 +63,23 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		return nil, err
 	}
 
+	store, err := serviceList.GetStore()
+	if err != nil {
+		log.Fatal(ctx, "could not instantiate filestore", err)
+		return nil, err
+	}
+
 	r.Path("/health").HandlerFunc(hc.Handler)
 
-	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, "static/json/users.json", "templates/user.login.html"))
-	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, "static/json/users.json", "static/keys/private.key"))
+	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, store))
+	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, store))
 	r.Handle("/api/{uri:.*}", apiRouterProxy)
 
 	for _, version := range cfg.APIVersions {
-		r.Path(versionedPath("/jwt-keys", version)).Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, utils.LoadJwtKeys))
-		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, "templates", "delete.token.html"))
+		r.Path(versionedPath("/jwt-keys", version)).Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, store))
+		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, store))
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
-		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx))
+		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx, store))
 		r.Path(versionedPath("/identity", version)).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
 	}
 
@@ -94,6 +100,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		HealthCheck: hc,
 		ServiceList: serviceList,
 		Server:      s,
+		Store:       store,
 	}, nil
 }
 

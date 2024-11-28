@@ -13,6 +13,9 @@ import (
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/service"
 	"github.com/ONSdigital/dis-authentication-stub/service/mock"
+	staticMock "github.com/ONSdigital/dis-authentication-stub/static/mock"
+
+	"github.com/ONSdigital/dis-authentication-stub/static"
 
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
@@ -28,6 +31,7 @@ var (
 
 var (
 	errHealthcheck = errors.New("healthCheck error")
+	errStore       = errors.New("store error")
 )
 
 var funcDoGetHealthcheckErr = func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
@@ -36,6 +40,10 @@ var funcDoGetHealthcheckErr = func(cfg *config.Config, buildTime string, gitComm
 
 var funcDoGetHTTPServerNil = func(bindAddr string, router http.Handler) service.HTTPServer {
 	return nil
+}
+
+var funcDoGetStoreNil = func() (static.Store, error) {
+	return nil, errStore
 }
 
 func TestRun(t *testing.T) {
@@ -63,6 +71,12 @@ func TestRun(t *testing.T) {
 			},
 		}
 
+		storeMock := &staticMock.StoreMock{}
+
+		funcDoGetStore := func() (static.Store, error) {
+			return storeMock, nil
+		}
+
 		funcDoGetHealthcheckOk := func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 			return hcMock, nil
 		}
@@ -80,6 +94,7 @@ func TestRun(t *testing.T) {
 			initMock := &mock.InitialiserMock{
 				DoGetHTTPServerFunc:  funcDoGetHTTPServerNil,
 				DoGetHealthCheckFunc: funcDoGetHealthcheckErr,
+				DoGetStoreFunc:       funcDoGetStoreNil,
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
@@ -89,10 +104,6 @@ func TestRun(t *testing.T) {
 				So(err, ShouldResemble, errHealthcheck)
 				So(svcList.HealthCheck, ShouldBeFalse)
 			})
-
-			Reset(func() {
-				// This reset is run after each `Convey` at the same scope (indentation)
-			})
 		})
 
 		Convey("Given that all dependencies are successfully initialised", func() {
@@ -100,6 +111,7 @@ func TestRun(t *testing.T) {
 			initMock := &mock.InitialiserMock{
 				DoGetHTTPServerFunc:  funcDoGetHTTPServer,
 				DoGetHealthCheckFunc: funcDoGetHealthcheckOk,
+				DoGetStoreFunc:       funcDoGetStore,
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
@@ -120,10 +132,6 @@ func TestRun(t *testing.T) {
 				serverWg.Wait() // Wait for HTTP server go-routine to finish
 				So(len(serverMock.ListenAndServeCalls()), ShouldEqual, 1)
 			})
-
-			Reset(func() {
-				// This reset is run after each `Convey` at the same scope (indentation)
-			})
 		})
 
 		Convey("Given that all dependencies are successfully initialised but the http server fails", func() {
@@ -131,6 +139,7 @@ func TestRun(t *testing.T) {
 			initMock := &mock.InitialiserMock{
 				DoGetHealthCheckFunc: funcDoGetHealthcheckOk,
 				DoGetHTTPServerFunc:  funcDoGetFailingHTTPSerer,
+				DoGetStoreFunc:       funcDoGetStore,
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
@@ -143,9 +152,21 @@ func TestRun(t *testing.T) {
 				So(sErr.Error(), ShouldResemble, fmt.Sprintf("failure in http listen and serve: %s", errServer.Error()))
 				So(len(failingServerMock.ListenAndServeCalls()), ShouldEqual, 1)
 			})
+		})
 
-			Reset(func() {
-				// This reset is run after each `Convey` at the same scope (indentation)
+		Convey("Given that creating the store returns an error", func() {
+			// setup (run before each `Convey` at this scope / indentation):
+			initMock := &mock.InitialiserMock{
+				DoGetHTTPServerFunc:  funcDoGetHTTPServerNil,
+				DoGetHealthCheckFunc: funcDoGetHealthcheckOk,
+				DoGetStoreFunc:       funcDoGetStoreNil,
+			}
+			svcErrors := make(chan error, 1)
+			svcList := service.NewServiceList(initMock)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+
+			Convey("Then service Run fails with the same error", func() {
+				So(err, ShouldResemble, errStore)
 			})
 		})
 	})
@@ -176,12 +197,19 @@ func TestClose(t *testing.T) {
 			},
 		}
 
+		storeMock := &staticMock.StoreMock{}
+
+		funcDoGetStore := func() (static.Store, error) {
+			return storeMock, nil
+		}
+
 		Convey("Closing the service results in all the dependencies being closed in the expected order", func() {
 			initMock := &mock.InitialiserMock{
 				DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.HTTPServer { return serverMock },
 				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMock, nil
 				},
+				DoGetStoreFunc: funcDoGetStore,
 			}
 
 			svcErrors := make(chan error, 1)
@@ -208,6 +236,7 @@ func TestClose(t *testing.T) {
 				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMock, nil
 				},
+				DoGetStoreFunc: funcDoGetStore,
 			}
 
 			svcErrors := make(chan error, 1)

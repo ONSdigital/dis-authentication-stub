@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/ONSdigital/dis-authentication-stub/config"
+	"github.com/ONSdigital/dis-authentication-stub/static"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 )
 
@@ -16,6 +17,7 @@ import (
 type Initialiser interface {
 	DoGetHTTPServer(bindAddr string, router http.Handler) HTTPServer
 	DoGetHealthCheck(cfg *config.Config, buildTime, gitCommit, version string) (HealthChecker, error)
+	DoGetStore() (static.Store, error)
 }
 
 // HTTPServer defines the required methods from the HTTP server
