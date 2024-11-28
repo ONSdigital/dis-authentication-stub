@@ -65,6 +65,7 @@ This stub provides the following endpoints to facilitate testing of authenticati
 | OTEL_SERVICE_NAME            | dis-authentication-stub | Label of service for OpenTelemetry service                                                                         |
 | OTEL_BATCH_TIMEOUT           | 5s                      | Timeout for OpenTelemetry                                                                                          |
 | OTEL_ENABLED                 | false                   | Feature flag to enable OpenTelemetry                                                                               |
+| WAGTAIL_URL                  | <http://localhost:8000/wagtail>     | Wagtail CMS URL     |
 
 ### Contributing
 
@@ -72,6 +73,6 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details.
 
 ### License
 
-Copyright © 2024, Office for National Statistics (https://www.ons.gov.uk)
+Copyright © 2024, Office for National Statistics (<https://www.ons.gov.uk>)
 
 Released under MIT license, see [LICENSE](LICENSE.md) for details.
