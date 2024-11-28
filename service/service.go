@@ -38,10 +38,18 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		return nil, err
 	}
 
-	apiRouterProxy := reverseproxy.Create(apiRouterURL, directors.Director("/api"), nil)
+	wagtailURL, err := url.Parse(cfg.WagtailURL)
+	if err != nil {
+		log.Fatal(ctx, "error parsing Wagtail URL", err)
+		return nil, err
+	}
 
+	apiRouterProxy := reverseproxy.Create(apiRouterURL, directors.Director("/api"), nil)
+	wagtailProxy := reverseproxy.Create(wagtailURL, directors.Director("/wagtail"), nil)
+
+	// TODO: Convert router to go http.servemux https://pkg.go.dev/net/http#ServeMux
 	// Get HTTP Server
-	r := mux.NewRouter()
+	r := mux.NewRouter().StrictSlash(false)
 
 	if cfg.OtelEnabled {
 		r.Use(otelmux.Middleware(cfg.OTServiceName))
@@ -50,15 +58,12 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	s := serviceList.GetHTTPServer(cfg.BindAddr, r)
 
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
-
 	if err != nil {
 		log.Fatal(ctx, "could not instantiate healthcheck", err)
 		return nil, err
 	}
 
-	r.StrictSlash(true).Path("/health").HandlerFunc(hc.Handler)
-
-	r.StrictSlash(true).Path("/health").Methods(http.MethodGet).HandlerFunc(hc.Handler)
+	r.Path("/health").HandlerFunc(hc.Handler)
 
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, "static/json/users.json", "templates/user.login.html"))
 	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, "static/json/users.json", "static/keys/private.key"))
@@ -71,6 +76,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx))
 		r.Path(versionedPath("/identity", version)).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
 	}
+
+	r.Handle("/wagtail{uri:.*}", wagtailProxy)
 
 	hc.Start(ctx)
 
