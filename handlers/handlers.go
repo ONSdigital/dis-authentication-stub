@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -128,6 +129,23 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		setRefreshTokenCookie(w, refreshToken)
 
 		http.Redirect(w, req, redirect, http.StatusSeeOther)
+	}
+}
+
+// FlorenceLogoutHandler invalidates the access, ID and refresh tokens and redirects to the login page
+func FlorenceLogoutHandler(ctx context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		invalidateAccessTokenCookie(w)
+		invalidateIDTokenCookie(w)
+		invalidateRefreshTokenCookie(w)
+
+		url := "/florence/login"
+		redirect := req.URL.Query().Get("redirect")
+		if redirect != "" {
+			url += fmt.Sprintf("?redirect=%s", redirect)
+		}
+
+		http.Redirect(w, req, url, http.StatusSeeOther)
 	}
 }
 

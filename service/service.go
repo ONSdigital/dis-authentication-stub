@@ -73,6 +73,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, store))
 	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, store))
+	r.Path("/florence/logout").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLogoutHandler(ctx))
 	r.Handle("/api/{uri:.*}", apiRouterProxy)
 
 	for _, version := range cfg.APIVersions {

@@ -248,6 +248,52 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 	})
 }
 
+func TestFlorenceLogoutHandler(t *testing.T) {
+	Convey("Given a request to logout", t, func() {
+		ctx := context.Background()
+
+		Convey("When the request is made to /florence/logout", func() {
+			request := httptest.NewRequest(http.MethodGet, "/florence/logout", http.NoBody)
+			responseRecorder := httptest.NewRecorder()
+
+			handler := FlorenceLogoutHandler(ctx)
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should redirect to /florence/login", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusSeeOther)
+				So(responseRecorder.Header().Get("Location"), ShouldEqual, "/florence/login")
+			})
+
+			Convey("Then it should invalidate cookies", func() {
+				cookies := responseRecorder.Result().Cookies()
+				for _, cookie := range cookies {
+					So(cookie.MaxAge, ShouldEqual, 0)
+				}
+			})
+		})
+
+		Convey("When the request has a redirect query parameter", func() {
+			request := httptest.NewRequest(http.MethodGet, "/florence/logout?redirect=/some/path", http.NoBody)
+			responseRecorder := httptest.NewRecorder()
+
+			handler := FlorenceLogoutHandler(ctx)
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should redirect to /florence/login with the redirect parameter", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusSeeOther)
+				So(responseRecorder.Header().Get("Location"), ShouldEqual, "/florence/login?redirect=/some/path")
+			})
+
+			Convey("Then it should invalidate cookies", func() {
+				cookies := responseRecorder.Result().Cookies()
+				for _, cookie := range cookies {
+					So(cookie.MaxAge, ShouldEqual, 0)
+				}
+			})
+		})
+	})
+}
+
 func TestGenerateJWT(t *testing.T) {
 	Convey("Given a user, and a mock store", t, func() {
 		cfg, err := config.Get()
