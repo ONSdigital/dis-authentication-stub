@@ -96,6 +96,22 @@ paths:
           $ref: '#/responses/UnauthorizedAccess'
         500:
           $ref: '#/responses/InternalError'
+  /florence/logout:
+    get:
+      tags:
+        - public
+      summary: "Invalidates access_token, id_token and refresh_token"
+      produces:
+        - text/html
+      parameters:
+        - in: query
+          name: redirect
+          type: string
+          default: "/florence/collections"
+          description: "The URL to redirect after a successful login"
+      responses:
+        303:
+          description: "Redirect to the /florence/login URL with optional redirect query parameter"
   /tokens/self:
     delete:
       tags:

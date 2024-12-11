@@ -24,7 +24,7 @@ This stub provides the following endpoints to facilitate testing of authenticati
 
    * GET /health: Returns 200 OK to confirm the service is running.
 
-2. Login Simulation
+1. Login Simulation
 
     * GET /florence/login: Displays a form with a list of configured users. Accepts an optional redirect query parameter (default is /florence/collections).
 
@@ -33,21 +33,25 @@ This stub provides the following endpoints to facilitate testing of authenticati
         * id_token: Signed JWT for the selected user.
         * refresh_token: Random opaque token stored in memory.
 
-3. Token Management
+1. Logout Simulation
+
+    * GET /florence/logout: Invalidates auth cookies and redirects to /florence/login. Accepts an optional redirect query parameter.
+
+1. Token Management
 
     * DELETE /tokens/self: Logs out the user by removing session entries and expiring the id_token, access_token, and refresh_token cookies.
 
     * PUT /tokens/self: Reads the refresh_token cookie to renew the access and ID tokens if valid. Returns 400 if missing or 403 if expired.
 
-4. JWT Key Retrieval
+1. JWT Key Retrieval
 
     * GET /jwt-keys: Returns a JSON map of public JWT signing keys, matching the format of dp-identity-api.
 
-5. API Reverse Proxy
+1. API Reverse Proxy
 
     * /api/: Proxies requests to APIs and sets the Authorization header with the access_token cookie value.
 
-6. Service Identity Validation
+1. Service Identity Validation
 
     * GET /identity: Verifies the service token in the Authorization header. Returns the app ID if valid, or 403 Forbidden otherwise.
 
