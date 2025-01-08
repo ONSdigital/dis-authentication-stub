@@ -309,7 +309,8 @@ func IdentifyUser(ctx context.Context) http.HandlerFunc {
 		cfg, _ := config.Get()
 		serviceAuthTokens := utils.GetServiceAuthTokens(*cfg)
 		serviceToken := strings.Replace(authorizationHeader, BearerPrefix, "", 1)
-		if serviceAuthTokens[serviceToken] != "" {
+		xFlorenceHeader := req.Header.Get("X-Florence-Token")
+		if serviceAuthTokens[serviceToken] != "" || xFlorenceHeader != "" {
 			response := map[string]string{"identifier": serviceAuthTokens[serviceToken]}
 			if err := json.NewEncoder(w).Encode(response); err != nil {
 				log.Error(ctx, "Error encoding response", err)
