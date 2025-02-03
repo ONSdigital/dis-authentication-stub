@@ -16,3 +16,7 @@
 
 # Key files
 *.key
+
+# Python
+__pycache__/
+*.pyc
