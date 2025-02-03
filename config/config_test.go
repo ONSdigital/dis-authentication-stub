@@ -33,7 +33,7 @@ func TestConfig(t *testing.T) {
 					OTExporterOTLPEndpoint:       "localhost:4317",
 					OTServiceName:                "dis-authentication-stub",
 					OtelEnabled:                  false,
-					WagtailURL:                   "http://localhost:8000/wagtail",
+					FallbackUrl:                  "http://localhost:8000",
 					AccessTokenValidityDuration:  15 * time.Minute,
 					IDTokenValidityDuration:      15 * time.Minute,
 					RefreshTokenValidityDuration: 12 * time.Hour,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"html"
 	"net/http"
 	"net/url"
@@ -134,10 +135,11 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		refreshToken := "testrefreshtokennn" // Random opaque token string
 
 		// Store refresh token details in the in-memory map
+		refreshTokenExpiry := time.Now().Add(cfg.RefreshTokenValidityDuration)
 		models.RefreshTokenStore[refreshToken] = models.RefreshTokenInfo{
-			Username:      username,
+			Username:      user.Username,
 			AuthTime:      time.Now(),
-			SessionExpiry: time.Now().Add(cfg.RefreshTokenValidityDuration), // Use your config for duration
+			SessionExpiry: refreshTokenExpiry,
 		}
 
 		// add to header
@@ -145,7 +147,53 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		setIDTokenCookie(w, idToken)
 		setRefreshTokenCookie(w, refreshToken)
 
-		http.Redirect(w, req, redirectPath, http.StatusSeeOther)
+		sessionExpiryISO, err := utils.GetExpiryISOFromToken(accessToken)
+		if err != nil {
+			log.Error(ctx, "Failed to get expiry time from token", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		refreshTokenExpiryISO := refreshTokenExpiry.UTC().Format(time.RFC3339)
+
+		// Redirect to shim page
+		redirectURL := fmt.Sprintf("/set-local-storage?session_expiry_time=%s&refresh_expiry_time=%s&redirect_uri=%s",
+			url.QueryEscape(sessionExpiryISO),
+			url.QueryEscape(refreshTokenExpiryISO),
+			url.QueryEscape(redirectPath),
+		)
+
+		http.Redirect(w, req, redirectURL, http.StatusSeeOther)
+	}
+}
+
+func SetLocalStorageHandler(ctx context.Context) http.HandlerFunc {
+	// This handler is used to set the local storage in the browser before redirecting to the destination URL
+	// This is a workaround for the fact that we cannot set local storage from the server side.
+	return func(w http.ResponseWriter, req *http.Request) {
+		accessExpiry := req.URL.Query().Get("session_expiry_time")
+		refreshExpiry := req.URL.Query().Get("refresh_expiry_time")
+		redirectURI := req.URL.Query().Get("redirect_uri")
+
+		html := fmt.Sprintf(`
+		<!DOCTYPE html>
+		<html>
+		<head><title>Signing in ...</title></head>
+		<body>
+		<script>
+			const authState = {
+		    session_expiry_time: "%s",
+		    refresh_expiry_time: "%s"
+		  };
+		  localStorage.setItem("dis_auth_client_state", JSON.stringify(authState));
+		  window.location.href = decodeURIComponent("%s");
+		</script>
+		</body>
+		</html>
+		`, accessExpiry, refreshExpiry, redirectURI)
+
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(html))
 	}
 }
 
@@ -167,8 +215,11 @@ func FlorenceLogoutHandler(ctx context.Context) http.HandlerFunc {
 }
 
 func generateAccessTokenJWT(store static.Store, user models.User, validity time.Duration) (string, error) {
+
 	accessTokenClaims := jwt.MapClaims{
-		"username": user.Username,
+		"username":  user.Username,
+		"token_use": "access",
+		"client_id": "dis-authentication-stub", // Matches aud from ID token
 	}
 
 	accessTokenJWT, err := generateJWT(store, user, accessTokenClaims, validity)
@@ -187,6 +238,8 @@ func generateIDTokenJWT(store static.Store, user models.User, validity time.Dura
 		"given_name":       user.Forename,
 		"family_name":      user.Surname,
 		"email":            user.Email,
+		"token_use":        "id",
+		"aud":              "dis-authentication-stub",
 	}
 	return generateJWT(store, user, idTokenClaims, validity)
 }
@@ -195,11 +248,13 @@ func generateJWT(store static.Store, user models.User, claims jwt.MapClaims, val
 	privateKey := store.GetPrivateKey()
 	kids := store.GetKids()
 
-	claims["auth_time"] = time.Now().Unix()         // Auth time
-	claims["cognito:groups"] = user.Groups          // Example Group TODO: pull this from somewhere
-	claims["iat"] = time.Now().Unix()               // Issued at
-	claims["sub"] = user.Username                   // subject (username)
-	claims["exp"] = time.Now().Add(validity).Unix() // Expires at
+	claims["auth_time"] = time.Now().Unix()                                               // Auth time
+	claims["cognito:groups"] = user.Groups                                                // Example Group TODO: pull this from somewhere
+	claims["iat"] = time.Now().Unix()                                                     // Issued at
+	claims["sub"] = user.Username                                                         // subject (username)
+	claims["exp"] = time.Now().Add(validity).Unix()                                       // Expires at
+	claims["iss"] = "https://cognito-idp.eu-west-2.amazonaws.com/dis-authentication-stub" // Issuer
+	claims["jti"] = uuid.New().String()                                                   // JWT ID
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = kids[0]
@@ -306,8 +361,19 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 		setAccessTokenCookie(w, newAccessToken)
 		setIDTokenCookie(w, newIDToken)
 
-		// Respond with a 200 OK status
-		w.WriteHeader(http.StatusOK)
+		sessionExpiryISO, err := utils.GetExpiryISOFromToken(newAccessToken)
+		if err != nil {
+			log.Error(ctx, "Failed to get expiry time from token", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]string{
+			"expirationTime": sessionExpiryISO,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	}
 }
 

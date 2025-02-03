@@ -38,14 +38,14 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		return nil, err
 	}
 
-	wagtailURL, err := url.Parse(cfg.WagtailURL)
+	fallbackUrl, err := url.Parse(cfg.FallbackUrl)
 	if err != nil {
-		log.Fatal(ctx, "error parsing Wagtail URL", err)
+		log.Fatal(ctx, "error parsing Fallback URL", err)
 		return nil, err
 	}
 
 	apiRouterProxy := reverseproxy.Create(apiRouterURL, directors.Director("/api"), nil)
-	wagtailProxy := reverseproxy.Create(wagtailURL, directors.Director("/wagtail"), nil)
+	fallbackProxy := reverseproxy.Create(fallbackUrl, nil, nil)
 
 	// TODO: Convert router to go http.servemux https://pkg.go.dev/net/http#ServeMux
 	// Get HTTP Server
@@ -75,6 +75,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, store))
 	r.Path("/florence/logout").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLogoutHandler(ctx))
 	r.Handle("/api/{uri:.*}", apiRouterProxy)
+	r.Path("/set-local-storage").Methods(http.MethodGet).HandlerFunc(handlers.SetLocalStorageHandler(ctx))
 
 	for _, version := range cfg.APIVersions {
 		r.Path(versionedPath("/jwt-keys", version)).Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, store))
@@ -84,7 +85,11 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		r.Path(versionedPath("/identity", version)).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
 	}
 
-	r.Handle("/wagtail{uri:.*}", wagtailProxy)
+	// Set a custom NotFoundHandler to forward unhandled routes to fallback proxy
+	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Info(ctx, "forwarding request", log.Data{"forwarded_request": r.URL.String(), "forwarded_to": fallbackUrl.String()})
+		fallbackProxy.ServeHTTP(w, r)
+	})
 
 	hc.Start(ctx)
 

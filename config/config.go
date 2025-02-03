@@ -18,7 +18,7 @@ type Config struct {
 	OTExporterOTLPEndpoint       string        `envconfig:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 	OTServiceName                string        `envconfig:"OTEL_SERVICE_NAME"`
 	OtelEnabled                  bool          `envconfig:"OTEL_ENABLED"`
-	WagtailURL                   string        `envconfig:"WAGTAIL_URL"`
+	FallbackUrl                  string        `envconfig:"FALLBACK_URL"`
 	AccessTokenValidityDuration  time.Duration `envconfig:"ACCESS_TOKEN_VALIDITY_DURATION"`
 	IDTokenValidityDuration      time.Duration `envconfig:"ID_TOKEN_VALIDITY_DURATION"`
 	RefreshTokenValidityDuration time.Duration `envconfig:"REFRESH_TOKEN_VALIDITY_DURATION"`
@@ -50,7 +50,7 @@ func Get() (*Config, error) {
 		OTExporterOTLPEndpoint:       "localhost:4317",
 		OTServiceName:                "dis-authentication-stub",
 		OtelEnabled:                  false,
-		WagtailURL:                   "http://localhost:8000/wagtail",
+		FallbackUrl:                  "http://localhost:8000",
 		AccessTokenValidityDuration:  15 * time.Minute,
 		IDTokenValidityDuration:      15 * time.Minute,
 		RefreshTokenValidityDuration: 12 * time.Hour,

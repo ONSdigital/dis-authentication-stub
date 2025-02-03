@@ -4,21 +4,21 @@
     "username": "c6a10dbb-38fb-4835-b181-ea2ea85da355",
     "forename": "John",
     "surname": "Smith",
-    "groups": ["role-admin"]
+    "groups": ["role-admin", "preview-team-1"]
   },
   {
     "email": "publisher@ons.gov.uk",
     "username": "13fc0599-9330-4f7a-bb3a-b1ce9e5b4c96",
     "forename": "Robert",
     "surname": "Bob",
-    "groups": ["role-publisher"]
+    "groups": ["role-publisher", "preview-team-1", "preview-team-2"]
   },
   {
     "email": "viewer1@ons.gov.uk",
     "username": "56252b3d-b87b-433a-9d76-9a16fb25c54e",
     "forename": "Julia",
     "surname": "Babbage",
-    "groups": []
+    "groups": ["preview-team-2"]
   },
   {
     "email": "viewer2@ons.gov.uk",
