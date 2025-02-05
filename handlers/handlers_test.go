@@ -359,7 +359,7 @@ func TestGenerateJWT(t *testing.T) {
 				So(claims["cognito:username"], ShouldEqual, testUser.Username)
 				So(claims["given_name"], ShouldEqual, testUser.Forename)
 				So(claims["family_name"], ShouldEqual, testUser.Surname)
-				So(claims["email"], ShouldEqual, testUser.Username)
+				So(claims["email"], ShouldEqual, testUser.Email)
 				So(claims["exp"], ShouldBeBetweenOrEqual, time.Now().Add(cfg.IDTokenValidityDuration).Unix(), time.Now().Add(cfg.IDTokenValidityDuration).Unix()-10)
 				So(token.Header["kid"], ShouldEqual, mockKID)
 			})
