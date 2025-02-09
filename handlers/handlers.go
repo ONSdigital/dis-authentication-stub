@@ -311,7 +311,13 @@ func IdentifyUser(ctx context.Context) http.HandlerFunc {
 		serviceToken := strings.Replace(authorizationHeader, BearerPrefix, "", 1)
 		xFlorenceHeader := req.Header.Get("X-Florence-Token")
 		if serviceAuthTokens[serviceToken] != "" || xFlorenceHeader != "" {
-			response := map[string]string{"identifier": serviceAuthTokens[serviceToken]}
+			response := make(map[string]string)
+			if serviceAuthTokens[serviceToken] != "" {
+				fmt.Println("")
+				response["identifier"] = serviceAuthTokens[serviceToken]
+			} else {
+				response["identifier"] = "admin@ons.gov.uk"
+			}
 			if err := json.NewEncoder(w).Encode(response); err != nil {
 				log.Error(ctx, "Error encoding response", err)
 				w.WriteHeader(http.StatusInternalServerError)
