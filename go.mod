@@ -11,6 +11,7 @@ require (
 	github.com/ONSdigital/log.go/v2 v2.4.3
 	github.com/cucumber/godog v0.14.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang/glog v1.2.4
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/kelseyhightower/envconfig v1.4.0

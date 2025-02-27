@@ -169,7 +169,7 @@ func generateIDTokenJWT(store static.Store, user models.User, validity time.Dura
 		"cognito:username": user.Username,
 		"given_name":       user.Forename,
 		"family_name":      user.Surname,
-		"email":            user.Username,
+		"email":            user.Email,
 	}
 	return generateJWT(store, user, idTokenClaims, validity)
 }
