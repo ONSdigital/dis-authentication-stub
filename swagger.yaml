@@ -43,6 +43,11 @@ paths:
           type: string
           default: "/florence/collections"
           description: "The URL to redirect after a successful login"
+        - in: query
+          name: next
+          type: string
+          default: "/florence/collections"
+          description: "The URL to redirect after a successful login"
       responses:
         200:
           description: "HTML form with list of users"
@@ -54,7 +59,7 @@ paths:
       tags:
         - public
       summary: "Logs in a user"
-      description: "return a redirect to the value of the redirect query param with the access_token, id_token and refresh_token"
+      description: "return a redirect to the value of the 'redirect' or 'next' query param with the access_token, id_token and refresh_token"
       consumes: 
         - application/json
       produces:
@@ -62,6 +67,11 @@ paths:
       parameters:
         - in: query
           name: redirect
+          type: string
+          default: "/florence/collections"
+          description: "The URL to redirect after a successful login"
+        - in: query
+          name: next
           type: string
           default: "/florence/collections"
           description: "The URL to redirect after a successful login"
@@ -79,7 +89,7 @@ paths:
           description: "The user's refresh token"
       responses:
         303:
-          description: "Redirect to the provided 'redirect' URL"
+          description: "Redirect to the provided 'redirect' or 'next' URL"
           headers:
             access_token:
               type: string
