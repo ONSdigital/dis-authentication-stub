@@ -37,9 +37,16 @@ func JWTKeysHandler(ctx context.Context, store static.Store) http.HandlerFunc {
 
 func FlorenceLoginHandler(ctx context.Context, store static.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		redirectURL := req.URL.Query().Get("redirect")
-		if redirectURL == "" {
-			redirectURL = "/florence/collections"
+		var redirectURL string
+		if req.URL.Query().Get("redirect") != "" {
+			redirectURL = req.URL.Query().Get("redirect")
+		}
+		if req.URL.Query().Get("next") != "" {
+			redirectURL = req.URL.Query().Get("next")
+		}
+		// if both 'next' and 'redirect' keys present, set empty string
+		if req.URL.Query().Get("next") != "" && req.URL.Query().Get("redirect") != "" {
+			redirectURL = ""
 		}
 
 		users, err := store.GetUsers()
@@ -87,9 +94,10 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 			return
 		}
 
+		redirectPath := "/florence/collections"
 		redirect := req.FormValue("redirect")
-		if redirect == "" {
-			redirect = req.URL.Query().Get("redirect")
+		if redirect != "" {
+			redirectPath = redirect
 		}
 		// Get the user by email
 		user, err := store.GetUser(username)
@@ -128,7 +136,7 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		setIDTokenCookie(w, idToken)
 		setRefreshTokenCookie(w, refreshToken)
 
-		http.Redirect(w, req, redirect, http.StatusSeeOther)
+		http.Redirect(w, req, redirectPath, http.StatusSeeOther)
 	}
 }
 
