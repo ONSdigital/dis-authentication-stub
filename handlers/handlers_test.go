@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +30,8 @@ const (
 
 	defaultValidRefreshToken = "validRefreshToken"
 	mockKID                  = "fakekid"
+
+	tpl = `{{.RedirectURL}}`
 )
 
 var (
@@ -109,6 +112,90 @@ func TestFlorenceLoginHandler(t *testing.T) {
 				So(responseRecorder.Body.String(), ShouldContainSubstring, mockContent)
 			})
 		})
+
+		Convey("When a user requests the login page with a 'redirect' query string parameter", func() {
+			tplData := models.TemplateData{
+				RedirectURL: "/some/path",
+			}
+
+			mockTemplate, err := template.New("foo").Parse(tpl)
+			So(err, ShouldBeNil)
+
+			err = mockTemplate.Execute(os.Stdout, tplData)
+			So(err, ShouldBeNil)
+
+			mockStore.GetUserLoginTemplateFunc = func() (*template.Template, error) { return mockTemplate, nil }
+
+			handler := FlorenceLoginHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, "/florence/login?redirect=/some/path", http.NoBody)
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 200 OK", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
+			})
+
+			Convey("And the redirect parameter should be present within the page", func() {
+				So(responseRecorder.Body.String(), ShouldContainSubstring, tplData.RedirectURL)
+			})
+		})
+
+		Convey("When a user requests the login page with a 'next' query string parameter", func() {
+			tplData := models.TemplateData{
+				RedirectURL: "/another/path",
+			}
+
+			mockTemplate, err := template.New("foo").Parse(tpl)
+			So(err, ShouldBeNil)
+
+			err = mockTemplate.Execute(os.Stdout, tplData)
+			So(err, ShouldBeNil)
+
+			mockStore.GetUserLoginTemplateFunc = func() (*template.Template, error) { return mockTemplate, nil }
+
+			handler := FlorenceLoginHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, "/florence/login?next=/another/path", http.NoBody)
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 200 OK", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
+			})
+
+			Convey("And the redirect parameter should be present within the page", func() {
+				So(responseRecorder.Body.String(), ShouldContainSubstring, tplData.RedirectURL)
+			})
+		})
+
+		Convey("When a user requests the login page with a 'next' and 'redirect' query string parameter", func() {
+			tplData := models.TemplateData{
+				RedirectURL: "",
+			}
+
+			mockTemplate, err := template.New("foo").Parse(tpl)
+			So(err, ShouldBeNil)
+
+			err = mockTemplate.Execute(os.Stdout, tplData)
+			So(err, ShouldBeNil)
+
+			mockStore.GetUserLoginTemplateFunc = func() (*template.Template, error) { return mockTemplate, nil }
+
+			handler := FlorenceLoginHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, "/florence/login?redirect=/this/path&next=/another/path", http.NoBody)
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 200 OK", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
+			})
+
+			Convey("And the redirect parameter should be empty", func() {
+				So(responseRecorder.Body.String(), ShouldBeEmpty)
+			})
+		})
 	})
 }
 
@@ -186,8 +273,9 @@ func TestFlorenceLoginHandlerPOST(t *testing.T) {
 
 			formData := url.Values{}
 			formData.Set("username", testUser.Email)
+			formData.Set("redirect", "/some/path")
 
-			request := httptest.NewRequest(http.MethodPost, "/florence/login?redirect=/some/path", strings.NewReader(formData.Encode()))
+			request := httptest.NewRequest(http.MethodPost, "/florence/login", strings.NewReader(formData.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			responseRecorder := httptest.NewRecorder()
 
