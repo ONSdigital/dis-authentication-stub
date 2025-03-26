@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -39,10 +41,10 @@ func FlorenceLoginHandler(ctx context.Context, store static.Store) http.HandlerF
 	return func(w http.ResponseWriter, req *http.Request) {
 		var redirectURL string
 		if req.URL.Query().Get("redirect") != "" {
-			redirectURL = req.URL.Query().Get("redirect")
+			redirectURL = html.EscapeString(req.URL.Query().Get("redirect"))
 		}
 		if req.URL.Query().Get("next") != "" {
-			redirectURL = req.URL.Query().Get("next")
+			redirectURL = html.EscapeString(req.URL.Query().Get("next"))
 		}
 		// if both 'next' and 'redirect' keys present, set empty string
 		if req.URL.Query().Get("next") != "" && req.URL.Query().Get("redirect") != "" {
@@ -97,8 +99,15 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		redirectPath := "/florence/collections"
 		redirect := req.FormValue("redirect")
 		if redirect != "" {
-			redirectPath = redirect
+			url, err := url.Parse(redirect)
+			if err != nil {
+				log.Error(ctx, "invalid redirect", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			redirectPath = html.EscapeString(url.Path)
 		}
+
 		// Get the user by email
 		user, err := store.GetUser(username)
 		if err != nil {
