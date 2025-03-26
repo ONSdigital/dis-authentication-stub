@@ -99,13 +99,13 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		redirectPath := "/florence/collections"
 		redirect := req.FormValue("redirect")
 		if redirect != "" {
-			url, err := url.Parse(redirect)
+			parsedURL, err := url.Parse(redirect)
 			if err != nil {
 				log.Error(ctx, "invalid redirect", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			redirectPath = html.EscapeString(url.Path)
+			redirectPath = html.EscapeString(parsedURL.Path)
 		}
 
 		// Get the user by email
@@ -156,13 +156,13 @@ func FlorenceLogoutHandler(ctx context.Context) http.HandlerFunc {
 		invalidateIDTokenCookie(w)
 		invalidateRefreshTokenCookie(w)
 
-		url := "/florence/login"
+		redirectPath := "/florence/login"
 		redirect := req.URL.Query().Get("redirect")
 		if redirect != "" {
-			url += fmt.Sprintf("?redirect=%s", redirect)
+			redirectPath += fmt.Sprintf("?redirect=%s", redirect)
 		}
 
-		http.Redirect(w, req, url, http.StatusSeeOther)
+		http.Redirect(w, req, redirectPath, http.StatusSeeOther)
 	}
 }
 
