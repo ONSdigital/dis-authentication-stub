@@ -137,7 +137,7 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		// Store refresh token details in the in-memory map
 		refreshTokenExpiry := time.Now().Add(cfg.RefreshTokenValidityDuration)
 		models.RefreshTokenStore[refreshToken] = models.RefreshTokenInfo{
-			Username:      user.Username,
+			Email:         user.Email,
 			AuthTime:      time.Now(),
 			SessionExpiry: refreshTokenExpiry,
 		}
@@ -338,20 +338,23 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 		}
 
 		// Retrieve the user details from the in-memory map using the username
-		user := models.User{
-			Username: tokenInfo.Username,
+		user, err := store.GetUser(tokenInfo.Email)
+		if err != nil {
+			log.Error(ctx, "Failed to get user from store", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		cfg, _ := config.Get()
 
 		// Generate new tokens
-		newAccessToken, err := generateAccessTokenJWT(store, user, cfg.AccessTokenValidityDuration)
+		newAccessToken, err := generateAccessTokenJWT(store, *user, cfg.AccessTokenValidityDuration)
 		if err != nil {
 			log.Error(ctx, "Failed to generate access token JWT", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
-		newIDToken, err := generateIDTokenJWT(store, user, cfg.IDTokenValidityDuration)
+		newIDToken, err := generateIDTokenJWT(store, *user, cfg.IDTokenValidityDuration)
 		if err != nil {
 			log.Error(ctx, "Failed to generate access token JWT", err)
 			w.WriteHeader(http.StatusInternalServerError)

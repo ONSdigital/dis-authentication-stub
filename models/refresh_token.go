@@ -4,7 +4,7 @@ import "time"
 
 // RefreshTokenInfo holds the token-related details
 type RefreshTokenInfo struct {
-	Username      string
+	Email         string
 	AuthTime      time.Time
 	SessionExpiry time.Time
 }
