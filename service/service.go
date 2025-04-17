@@ -83,6 +83,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx, store))
 		r.Path(versionedPath("/identity", version)).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
+		r.Path(versionedPath("/groups", version)).Methods(http.MethodGet).HandlerFunc(handlers.GroupsHandler(ctx, store))
+		r.Path(versionedPath("/groups/{id}", version)).Methods(http.MethodGet).HandlerFunc(handlers.GroupByIDHandler(ctx, store))
 	}
 
 	// Set a custom NotFoundHandler to forward unhandled routes to fallback proxy

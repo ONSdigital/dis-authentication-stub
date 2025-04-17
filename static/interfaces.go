@@ -17,4 +17,6 @@ type Store interface {
 	GetUser(email string) (*models.User, error)
 	GetUserLoginTemplate() (*template.Template, error)
 	GetUsers() ([]models.User, error)
+	GetGroups() ([]models.Group, error)
+	GetGroup(name string) (*models.Group, error)
 }

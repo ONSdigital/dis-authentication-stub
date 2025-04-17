@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"html"
 	"net/http"
 	"net/url"
@@ -377,6 +378,47 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
+	}
+}
+
+func GroupsHandler(ctx context.Context, store static.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		groups, err := store.GetGroups()
+		if err != nil {
+			log.Error(ctx, "failed to load groups", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]interface{}{
+			"groups": groups,
+			"count":  len(groups),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Error(ctx, "failed to encode group response", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}
+}
+
+func GroupByIDHandler(ctx context.Context, store static.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := mux.Vars(r)["id"]
+
+		group, err := store.GetGroup(id)
+		if err != nil {
+			log.Error(ctx, "group not found", err, log.Data{"id": id})
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(group); err != nil {
+			log.Error(ctx, "failed to encode group", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	}
 }
 

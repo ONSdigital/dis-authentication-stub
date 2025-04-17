@@ -1,0 +1,47 @@
+[
+  {
+    "id": "fcf2bf89-abe3-430d-a502-e7aec9585b80",
+    "name": "RSI Team",
+    "creation_date": "2025-04-15T12:00:00Z",
+    "last_modified_date": "2025-04-17T12:00:00Z",
+    "precedence": 2,
+    "role_arn": null,
+    "user_pool_id": "eu-west-2_abc"
+  },
+  {
+    "id": "981aae18-941f-4a85-9d05-2171bb614e97",
+    "name": "PSF Team",
+    "creation_date": "2025-04-15T12:00:00Z",
+    "last_modified_date": "2025-04-17T12:00:00Z",
+    "precedence": 4,
+    "role_arn": null,
+    "user_pool_id": "eu-west-2_abc"
+  },
+  {
+    "id": "2270080f-2411-4571-94b7-513dff55d0db",
+    "name": "CPI Team",
+    "creation_date": "2025-04-15T12:00:00Z",
+    "last_modified_date": "2025-04-17T12:00:00Z",
+    "precedence": 4,
+    "role_arn": null,
+    "user_pool_id": "eu-west-2_abc"
+  },
+  {
+    "id": "f29d4c52-46e8-41b1-9310-bbdbf1f1d2ae",
+    "name": "PPI Team",
+    "creation_date": "2025-04-15T12:00:00Z",
+    "last_modified_date": "2025-04-17T12:00:00Z",
+    "precedence": 4,
+    "role_arn": null,
+    "user_pool_id": "eu-west-2_abc"
+  },
+  {
+    "id": "fb5d3141-ba1a-4d05-b5e7-5287c5e9debe",
+    "name": "GDP Team",
+    "creation_date": "2025-04-15T12:00:00Z",
+    "last_modified_date": "2025-04-17T12:00:00Z",
+    "precedence": 4,
+    "role_arn": null,
+    "user_pool_id": "eu-west-2_abc"
+  }
+]
