@@ -28,6 +28,7 @@ type Config struct {
 	StaticFilePublisherAuthToken string        `envconfig:"STATIC_FILE_PUBLISHER_AUTH_TOKEN"`
 	UploadServiceAuthToken       string        `envconfig:"UPLOAD_SERVICE_AUTH_TOKEN"`
 	ZebedeeAuthToken             string        `envconfig:"ZEBEDEE_AUTH_TOKEN"`
+	WagtailAuthToken             string        `envconfig:"WAGTAIL_AUTH_TOKEN"`
 }
 
 var cfg *Config
@@ -60,6 +61,7 @@ func Get() (*Config, error) {
 		StaticFilePublisherAuthToken: "JK8347LM-561P-320H-7N4Q-88CF1379B432",
 		UploadServiceAuthToken:       "YZ6583QR-234K-770P-9T3L-39GH1529T501",
 		ZebedeeAuthToken:             "OP2579XY-683J-512M-4T9K-77LA3056W798",
+		WagtailAuthToken:             "WT1234AB-456C-789D-1E2F-90GH1234I567",
 	}
 
 	return cfg, envconfig.Process("", cfg)

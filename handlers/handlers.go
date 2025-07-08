@@ -9,7 +9,6 @@ import (
 	"html"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/ONSdigital/dis-authentication-stub/config"
@@ -19,10 +18,6 @@ import (
 
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/golang-jwt/jwt"
-)
-
-const (
-	BearerPrefix = "Bearer "
 )
 
 func JWTKeysHandler(ctx context.Context, store static.Store) http.HandlerFunc {
@@ -382,7 +377,12 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 }
 
 func GroupsHandler(ctx context.Context, store static.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if _, status := checkServiceToken(r); status != 0 {
+			w.WriteHeader(status)
+			return
+		}
+
 		groups, err := store.GetGroups()
 		if err != nil {
 			log.Error(ctx, "failed to load groups", err)
@@ -405,6 +405,11 @@ func GroupsHandler(ctx context.Context, store static.Store) http.HandlerFunc {
 
 func GroupByIDHandler(ctx context.Context, store static.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if _, status := checkServiceToken(r); status != 0 {
+			w.WriteHeader(status)
+			return
+		}
+
 		id := mux.Vars(r)["id"]
 
 		group, err := store.GetGroup(id)
@@ -426,20 +431,11 @@ func GroupByIDHandler(ctx context.Context, store static.Store) http.HandlerFunc 
 func IdentifyUser(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		// Retrieve Authorization header
-		authorizationHeader := req.Header.Get("Authorization")
-		if authorizationHeader == "" {
-			log.Error(ctx, "Authorization header missing", nil)
-			w.WriteHeader(http.StatusUnauthorized)
+		if id, status := checkServiceToken(req); status != 0 {
+			w.WriteHeader(status)
 			return
-		}
-
-		// Check if service token from header matches one in config
-		cfg, _ := config.Get()
-		serviceAuthTokens := utils.GetServiceAuthTokens(*cfg)
-		serviceToken := strings.Replace(authorizationHeader, BearerPrefix, "", 1)
-		xFlorenceHeader := req.Header.Get("X-Florence-Token")
-		if serviceAuthTokens[serviceToken] != "" || xFlorenceHeader != "" {
-			response := map[string]string{"identifier": serviceAuthTokens[serviceToken]}
+		} else {
+			response := map[string]string{"identifier": id}
 			if err := json.NewEncoder(w).Encode(response); err != nil {
 				log.Error(ctx, "Error encoding response", err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -448,9 +444,6 @@ func IdentifyUser(ctx context.Context) http.HandlerFunc {
 			}
 			return
 		}
-
-		// Service token did not match with any in config
-		w.WriteHeader(http.StatusForbidden)
 	}
 }
 
