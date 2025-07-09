@@ -24,6 +24,7 @@ func TestGetServiceAuthTokens(t *testing.T) {
 					cfg.StaticFilePublisherAuthToken: "dp-static-file-publisher",
 					cfg.UploadServiceAuthToken:       "dp-upload-service",
 					cfg.ZebedeeAuthToken:             "zebedee",
+					cfg.WagtailAuthToken:             "wagtail",
 				}
 				So(result, ShouldResemble, expected)
 			})
