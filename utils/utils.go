@@ -12,5 +12,6 @@ func GetServiceAuthTokens(cfg config.Config) map[string]string {
 		cfg.StaticFilePublisherAuthToken: "dp-static-file-publisher",
 		cfg.UploadServiceAuthToken:       "dp-upload-service",
 		cfg.ZebedeeAuthToken:             "zebedee",
+		cfg.WagtailAuthToken:             "wagtail",
 	}
 }
