@@ -44,8 +44,15 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		return nil, err
 	}
 
+	dataAdminURL, err := url.Parse(cfg.DataAdminURL)
+	if err != nil {
+		log.Fatal(ctx, "error parsing Data Admin URL", err)
+		return nil, err
+	}
+
 	apiRouterProxy := reverseproxy.Create(apiRouterURL, directors.Director("/api"), nil)
 	wagtailProxy := reverseproxy.Create(wagtailURL, directors.Director("/wagtail"), nil)
+	dataAdminProxy := reverseproxy.Create(dataAdminURL, directors.Director("/data-admin"), nil)
 
 	// TODO: Convert router to go http.servemux https://pkg.go.dev/net/http#ServeMux
 	// Get HTTP Server
@@ -85,6 +92,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	}
 
 	r.Handle("/wagtail{uri:.*}", wagtailProxy)
+	r.Handle("/data-admin{uri:.*}", dataAdminProxy)
 
 	hc.Start(ctx)
 

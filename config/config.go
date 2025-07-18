@@ -19,6 +19,7 @@ type Config struct {
 	OTServiceName                string        `envconfig:"OTEL_SERVICE_NAME"`
 	OtelEnabled                  bool          `envconfig:"OTEL_ENABLED"`
 	WagtailURL                   string        `envconfig:"WAGTAIL_URL"`
+	DataAdminURL                 string        `envconfig:"DATA_ADMIN_URL"`
 	AccessTokenValidityDuration  time.Duration `envconfig:"ACCESS_TOKEN_VALIDITY_DURATION"`
 	IDTokenValidityDuration      time.Duration `envconfig:"ID_TOKEN_VALIDITY_DURATION"`
 	RefreshTokenValidityDuration time.Duration `envconfig:"REFRESH_TOKEN_VALIDITY_DURATION"`
@@ -52,6 +53,7 @@ func Get() (*Config, error) {
 		OTServiceName:                "dis-authentication-stub",
 		OtelEnabled:                  false,
 		WagtailURL:                   "http://localhost:8000/wagtail",
+		DataAdminURL:                 "http://localhost:29400/data-admin",
 		AccessTokenValidityDuration:  15 * time.Minute,
 		IDTokenValidityDuration:      15 * time.Minute,
 		RefreshTokenValidityDuration: 12 * time.Hour,
