@@ -34,6 +34,7 @@ func TestConfig(t *testing.T) {
 					OTServiceName:                "dis-authentication-stub",
 					OtelEnabled:                  false,
 					WagtailURL:                   "http://localhost:8000/wagtail",
+					DataAdminURL:                 "http://localhost:29400/data-admin",
 					AccessTokenValidityDuration:  15 * time.Minute,
 					IDTokenValidityDuration:      15 * time.Minute,
 					RefreshTokenValidityDuration: 12 * time.Hour,
