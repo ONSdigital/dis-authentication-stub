@@ -5,5 +5,5 @@ const (
 	RefreshTokenCookie = "refresh_token"
 	IDTokenCookie      = "id_token"
 
-	RefreshTokenCookiePath = "/tokens/self"
+	RefreshTokenCookiePath = "/api/v1/tokens/self"
 )
