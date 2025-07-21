@@ -132,13 +132,14 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 		}
 
 		refreshToken := "testrefreshtokennn" // Random opaque token string
-
-		// Store refresh token details in the in-memory map
-		models.RefreshTokenStore[refreshToken] = models.RefreshTokenInfo{
+		refreshTokenData := models.RefreshTokenInfo{
 			Username:      username,
 			AuthTime:      time.Now(),
 			SessionExpiry: time.Now().Add(cfg.RefreshTokenValidityDuration), // Use your config for duration
 		}
+
+		// Store refresh token details in the in-memory map
+		models.RefreshTokenStore[refreshToken] = refreshTokenData
 
 		// add to header
 		setAccessTokenCookie(w, accessToken)
@@ -268,7 +269,7 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 		// retrieve refresh_token cookie from the request
 		refreshCookie, err := req.Cookie(models.RefreshTokenCookie)
 		if err != nil {
-			log.Error(ctx, "Refresh token not present", err)
+			log.Error(ctx, "refresh token not present in request", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -276,8 +277,14 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 
 		// Check if the refresh token exists and hasn't expired
 		tokenInfo, exists := models.RefreshTokenStore[refreshTokenValue]
-		if !exists || tokenInfo.SessionExpiry.Before(time.Now()) {
-			log.Error(ctx, "Invalid or expired refresh token", err)
+		if !exists {
+			log.Error(ctx, "refresh token not present in store", err)
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		if tokenInfo.SessionExpiry.Before(time.Now()) {
+			log.Error(ctx, "refresh token has expired", err)
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -292,13 +299,13 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 		// Generate new tokens
 		newAccessToken, err := generateAccessTokenJWT(store, user, cfg.AccessTokenValidityDuration)
 		if err != nil {
-			log.Error(ctx, "Failed to generate access token JWT", err)
+			log.Error(ctx, "failed to generate access token JWT", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
 		newIDToken, err := generateIDTokenJWT(store, user, cfg.IDTokenValidityDuration)
 		if err != nil {
-			log.Error(ctx, "Failed to generate access token JWT", err)
+			log.Error(ctx, "failed to generate ID token JWT", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 

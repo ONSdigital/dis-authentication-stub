@@ -598,7 +598,26 @@ func TestTokenSelfPutHandler(t *testing.T) {
 			})
 		})
 
-		Convey("When the refresh token is invalid or expired", func() {
+		Convey("When the refresh token is expired", func() {
+			request := httptest.NewRequest(http.MethodPut, tokensSelfEndpoint, http.NoBody)
+			request.AddCookie(&http.Cookie{Name: models.RefreshTokenCookie, Value: defaultValidRefreshToken, Path: "/"})
+
+			models.RefreshTokenStore[defaultValidRefreshToken] = models.RefreshTokenInfo{
+				Username:      "Valid",
+				AuthTime:      time.Now(),
+				SessionExpiry: time.Now().Add(-(time.Duration(5) * time.Minute)),
+			}
+
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 403 Forbidden", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusForbidden)
+			})
+		})
+
+		Convey("When the refresh token is invalid", func() {
 			request := httptest.NewRequest(http.MethodPut, tokensSelfEndpoint, http.NoBody)
 			request.AddCookie(&http.Cookie{Name: models.RefreshTokenCookie, Value: "invalid_token", Path: "/"})
 			responseRecorder := httptest.NewRecorder()
