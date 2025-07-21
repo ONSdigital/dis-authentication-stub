@@ -196,11 +196,11 @@ func generateJWT(store static.Store, user models.User, claims jwt.MapClaims, val
 	privateKey := store.GetPrivateKey()
 	kids := store.GetKids()
 
-	claims["auth_time"] = time.Now().Unix()         // Auth time
-	claims["cognito:groups"] = user.Groups          // Example Group TODO: pull this from somewhere
-	claims["iat"] = time.Now().Unix()               // Issued at
-	claims["sub"] = user.Username                   // subject (username)
-	claims["exp"] = time.Now().Add(validity).Unix() // Expires at
+	claims["auth_time"] = time.Now().Unix()           // Auth time
+	claims["cognito:groups"] = user.Groups            // Example Group TODO: pull this from somewhere
+	claims["iat"] = time.Now().Unix()                 // Issued at
+	claims["sub"] = user.Username                     // subject (username)
+	claims["exp"] = createExpiryTime(validity).Unix() // Expires at
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = kids[0]
@@ -212,6 +212,10 @@ func generateJWT(store static.Store, user models.User, claims jwt.MapClaims, val
 	}
 
 	return tokenString, nil
+}
+
+func createExpiryTime(validity time.Duration) time.Time {
+	return time.Now().UTC().Add(validity)
 }
 
 func TokenSelfGetHandler(ctx context.Context, store static.Store) http.HandlerFunc {
@@ -312,6 +316,22 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 		// Set new tokens as cookies
 		setAccessTokenCookie(w, newAccessToken)
 		setIDTokenCookie(w, newIDToken)
+
+		responsePayload := models.RefreshResponse{
+			ExpirationTime: createExpiryTime(cfg.IDTokenValidityDuration),
+		}
+
+		response, err := json.Marshal(responsePayload)
+		if err != nil {
+			log.Error(ctx, "failed to marshal refresh response payload", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		_, err = w.Write(response)
+		if err != nil {
+			log.Error(ctx, "failed to write response body", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 
 		// Respond with a 200 OK status
 		w.WriteHeader(http.StatusOK)

@@ -9,5 +9,9 @@ type RefreshTokenInfo struct {
 	SessionExpiry time.Time
 }
 
+type RefreshResponse struct {
+	ExpirationTime time.Time `json:"expirationTime"`
+}
+
 // In-memory map to store refresh tokens
 var RefreshTokenStore = map[string]RefreshTokenInfo{}

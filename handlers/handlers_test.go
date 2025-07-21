@@ -670,6 +670,17 @@ func TestTokenSelfPutHandler(t *testing.T) {
 				So(idToken.Value, ShouldNotBeEmpty)
 				So(idToken.HttpOnly, ShouldBeFalse)
 			})
+
+			Convey("And it should pass the expiration date in the payload", func() {
+				body := responseRecorder.Body
+
+				responsePayload := models.RefreshResponse{}
+
+				err := json.Unmarshal(body.Bytes(), &responsePayload)
+				So(err, ShouldBeNil)
+
+				So(responsePayload.ExpirationTime.After(time.Now()), ShouldBeTrue)
+			})
 		})
 	})
 }
