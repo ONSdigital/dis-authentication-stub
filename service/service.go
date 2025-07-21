@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -81,9 +82,20 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, store))
 	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, store))
 	r.Path("/florence/logout").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLogoutHandler(ctx))
-	r.Handle("/api/{uri:.*}", apiRouterProxy)
+
+	florenceAPIPrefix := "/api"
 
 	for _, version := range cfg.APIVersions {
+		// TODO: make this more DRY
+
+		// Fake the Florence proxy on /api
+		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/jwt-keys", version))).Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, store))
+		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/tokens/self", version))).Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, store))
+		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/tokens/self", version))).Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
+		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/tokens/self", version))).Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx, store))
+		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/identity", version))).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
+
+		// Fake the API router without the florence proxy
 		r.Path(versionedPath("/jwt-keys", version)).Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, store))
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, store))
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
@@ -93,6 +105,9 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	r.Handle("/wagtail{uri:.*}", wagtailProxy)
 	r.Handle("/data-admin{uri:.*}", dataAdminProxy)
+
+	// Catch all for other florence API routes
+	r.Handle("/api/{uri:.*}", apiRouterProxy)
 
 	hc.Start(ctx)
 
