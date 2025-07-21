@@ -8,14 +8,14 @@
         <p>Your session is active.</p>
         <form id="deleteForm"
               method="post"
-              action="/tokens/self"
+              action="/api/v1/tokens/self"
               onsubmit="event.preventDefault(); deleteSession();">
             <button type="submit">Delete Session</button>
         </form>
         <button id="refreshButton" onclick="refreshSession()">Refresh Session</button>
         <script>
         function deleteSession() {
-            fetch('/tokens/self', {
+            fetch('/api/v1/tokens/self', {
                 method: 'DELETE'
             }).then(response => {
                 if (response.ok) {
@@ -29,7 +29,7 @@
 
         // Function to refresh the session tokens
         function refreshSession() {
-            fetch('/tokens/self', {
+            fetch('/api/v1/tokens/self', {
                 method: 'PUT'
             }).then(response => {
                 if (response.ok) {
