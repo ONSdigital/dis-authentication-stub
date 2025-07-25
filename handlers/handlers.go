@@ -363,13 +363,7 @@ func IdentifyUser(ctx context.Context, serviceAuthTokenMap map[string]string) ht
 			return
 		}
 
-		// Check if X-Florence-Token header is present
-		if req.Header.Get("X-Florence-Token") != "" {
-			writeIdentifierResponse(ctx, w, "X-Florence-Token")
-			return
-		}
-
-		// Service token did not match with any in serviceAuthTokenMap, AccessTokenStore and X-Florence-Token header not present
+		// Service token did not match with any in serviceAuthTokenMap and AccessTokenStore
 		w.WriteHeader(http.StatusForbidden)
 	}
 }

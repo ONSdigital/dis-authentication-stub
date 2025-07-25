@@ -735,24 +735,6 @@ func TestIdentifyUser_Success(t *testing.T) {
 				So(response["identifier"], ShouldEqual, "some-uuid-username")
 			})
 		})
-
-		Convey("When the service token is not within the serviceAuthTokenMap or AccessTokenStore but an X-Florence-Token header is provided", func() {
-			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
-			request.Header.Set("Authorization", "invalid-token")
-			request.Header.Set("X-Florence-Token", "some-token")
-
-			responseRecorder := httptest.NewRecorder()
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 200 with expected JSON body", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
-
-				var response map[string]string
-				err := json.NewDecoder(responseRecorder.Body).Decode(&response)
-				So(err, ShouldBeNil)
-				So(response["identifier"], ShouldEqual, "X-Florence-Token")
-			})
-		})
 	})
 }
 
@@ -778,7 +760,7 @@ func TestIdentifyUser_Failure(t *testing.T) {
 			})
 		})
 
-		Convey("When the service token is not within the serviceAuthTokenMap, AccessTokenStore and there is no X-Florence-Token header", func() {
+		Convey("When the service token is not within the serviceAuthTokenMap or AccessTokenStore", func() {
 			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
 			request.Header.Set("Authorization", "Bearer invalid-token")
 			responseRecorder := httptest.NewRecorder()
