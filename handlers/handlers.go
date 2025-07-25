@@ -13,7 +13,6 @@ import (
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/models"
 	"github.com/ONSdigital/dis-authentication-stub/static"
-	"github.com/ONSdigital/dis-authentication-stub/utils"
 
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/golang-jwt/jwt"
@@ -124,6 +123,9 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 			log.Error(ctx, "Failed to generate access token JWT", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+
+		// Store access token in the in-memory map
+		models.AccessTokenStore[strings.TrimPrefix(accessToken, BearerPrefix)] = user.Username
 
 		idToken, err := generateIDTokenJWT(store, *user, cfg.IDTokenValidityDuration)
 		if err != nil {
@@ -338,10 +340,8 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 	}
 }
 
-// Verify the service token exists within config
-func IdentifyUser(ctx context.Context) http.HandlerFunc {
+func IdentifyUser(ctx context.Context, serviceAuthTokenMap map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		// Retrieve Authorization header
 		authorizationHeader := req.Header.Get("Authorization")
 		if authorizationHeader == "" {
 			log.Error(ctx, "Authorization header missing", nil)
@@ -349,24 +349,38 @@ func IdentifyUser(ctx context.Context) http.HandlerFunc {
 			return
 		}
 
-		// Check if service token from header matches one in config
-		cfg, _ := config.Get()
-		serviceAuthTokens := utils.GetServiceAuthTokens(*cfg)
-		serviceToken := strings.Replace(authorizationHeader, BearerPrefix, "", 1)
-		xFlorenceHeader := req.Header.Get("X-Florence-Token")
-		if serviceAuthTokens[serviceToken] != "" || xFlorenceHeader != "" {
-			response := map[string]string{"identifier": serviceAuthTokens[serviceToken]}
-			if err := json.NewEncoder(w).Encode(response); err != nil {
-				log.Error(ctx, "Error encoding response", err)
-				w.WriteHeader(http.StatusInternalServerError)
-			} else {
-				w.WriteHeader(http.StatusOK)
-			}
+		serviceToken := strings.TrimPrefix(authorizationHeader, BearerPrefix)
+
+		// Check if the service token matches any in serviceAuthTokenMap, identifier will be the service name
+		if identifier := serviceAuthTokenMap[serviceToken]; identifier != "" {
+			writeIdentifierResponse(ctx, w, identifier)
 			return
 		}
 
-		// Service token did not match with any in config
+		// Check if the service token matches any in AccessTokenStore, identifer will be the username
+		if identifier := models.AccessTokenStore[serviceToken]; identifier != "" {
+			writeIdentifierResponse(ctx, w, identifier)
+			return
+		}
+
+		// Check if X-Florence-Token header is present
+		if req.Header.Get("X-Florence-Token") != "" {
+			writeIdentifierResponse(ctx, w, "X-Florence-Token")
+			return
+		}
+
+		// Service token did not match with any in serviceAuthTokenMap, AccessTokenStore and X-Florence-Token header not present
 		w.WriteHeader(http.StatusForbidden)
+	}
+}
+
+func writeIdentifierResponse(ctx context.Context, w http.ResponseWriter, identifier string) {
+	response := map[string]string{"identifier": identifier}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Error(ctx, "Error encoding response", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 }
 

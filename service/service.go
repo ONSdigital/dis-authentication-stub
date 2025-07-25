@@ -10,6 +10,7 @@ import (
 	"github.com/ONSdigital/dis-authentication-stub/directors"
 	"github.com/ONSdigital/dis-authentication-stub/handlers"
 	"github.com/ONSdigital/dis-authentication-stub/static"
+	"github.com/ONSdigital/dis-authentication-stub/utils"
 	"github.com/ONSdigital/dp-net/v2/handlers/reverseproxy"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
@@ -77,6 +78,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		return nil, err
 	}
 
+	serviceAuthTokenMap := utils.GetServiceAuthTokens(*cfg)
+
 	r.Path("/health").HandlerFunc(hc.Handler)
 
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, store))
@@ -93,14 +96,14 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/tokens/self", version))).Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, store))
 		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/tokens/self", version))).Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
 		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/tokens/self", version))).Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx, store))
-		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/identity", version))).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
+		r.Path(fmt.Sprintf("%s%s", florenceAPIPrefix, versionedPath("/identity", version))).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx, serviceAuthTokenMap))
 
 		// Fake the API router without the florence proxy
 		r.Path(versionedPath("/jwt-keys", version)).Methods(http.MethodGet).HandlerFunc(handlers.JWTKeysHandler(ctx, store))
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodGet).HandlerFunc(handlers.TokenSelfGetHandler(ctx, store))
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodDelete).HandlerFunc(handlers.TokenSelfDeleteHandler(ctx))
 		r.Path(versionedPath("/tokens/self", version)).Methods(http.MethodPut).HandlerFunc(handlers.TokenSelfPutHandler(ctx, store))
-		r.Path(versionedPath("/identity", version)).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx))
+		r.Path(versionedPath("/identity", version)).Methods(http.MethodGet).HandlerFunc(handlers.IdentifyUser(ctx, serviceAuthTokenMap))
 	}
 
 	r.Handle("/wagtail{uri:.*}", wagtailProxy)

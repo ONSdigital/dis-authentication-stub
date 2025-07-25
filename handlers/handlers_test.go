@@ -18,6 +18,7 @@ import (
 	"github.com/ONSdigital/dis-authentication-stub/config"
 	"github.com/ONSdigital/dis-authentication-stub/models"
 	"github.com/ONSdigital/dis-authentication-stub/static/mock"
+	"github.com/ONSdigital/dis-authentication-stub/utils"
 	"github.com/golang-jwt/jwt"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -685,10 +686,86 @@ func TestTokenSelfPutHandler(t *testing.T) {
 	})
 }
 
-func TestIdentifyUser(t *testing.T) {
+func TestIdentifyUser_Success(t *testing.T) {
 	Convey("Given a context and IdentifyUser handler", t, func() {
 		ctx := context.Background()
-		handler := IdentifyUser(ctx)
+
+		cfg, err := config.Get()
+		So(err, ShouldBeNil)
+
+		serviceAuthTokenMap := utils.GetServiceAuthTokens(*cfg)
+
+		existingKeyWithinServiceAuthTokenMap := BearerPrefix + cfg.ZebedeeAuthToken
+
+		existingKeyWithinAccessTokenStore := "access-token-store-key"
+		models.AccessTokenStore[existingKeyWithinAccessTokenStore] = "some-uuid-username"
+
+		handler := IdentifyUser(ctx, serviceAuthTokenMap)
+
+		Convey("When the service token is within the serviceAuthTokenMap", func() {
+			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
+			request.Header.Set("Authorization", existingKeyWithinServiceAuthTokenMap)
+
+			responseRecorder := httptest.NewRecorder()
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 200 with expected JSON body", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
+
+				var response map[string]string
+				err := json.NewDecoder(responseRecorder.Body).Decode(&response)
+				So(err, ShouldBeNil)
+				So(response["identifier"], ShouldEqual, "zebedee")
+			})
+		})
+
+		Convey("When the service token is only within the AccessTokenStore", func() {
+			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
+			request.Header.Set("Authorization", BearerPrefix+existingKeyWithinAccessTokenStore)
+
+			responseRecorder := httptest.NewRecorder()
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 200 with expected JSON body", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
+
+				var response map[string]string
+				err := json.NewDecoder(responseRecorder.Body).Decode(&response)
+				So(err, ShouldBeNil)
+				So(response["identifier"], ShouldEqual, "some-uuid-username")
+			})
+		})
+
+		Convey("When the service token is not within the serviceAuthTokenMap or AccessTokenStore but an X-Florence-Token header is provided", func() {
+			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
+			request.Header.Set("Authorization", "invalid-token")
+			request.Header.Set("X-Florence-Token", "some-token")
+
+			responseRecorder := httptest.NewRecorder()
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 200 with expected JSON body", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
+
+				var response map[string]string
+				err := json.NewDecoder(responseRecorder.Body).Decode(&response)
+				So(err, ShouldBeNil)
+				So(response["identifier"], ShouldEqual, "X-Florence-Token")
+			})
+		})
+	})
+}
+
+func TestIdentifyUser_Failure(t *testing.T) {
+	Convey("Given a context and IdentifyUser handler", t, func() {
+		ctx := context.Background()
+
+		cfg, err := config.Get()
+		So(err, ShouldBeNil)
+
+		serviceAuthTokenMap := utils.GetServiceAuthTokens(*cfg)
+
+		handler := IdentifyUser(ctx, serviceAuthTokenMap)
 
 		Convey("When the Authorization header is missing", func() {
 			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
@@ -701,7 +778,7 @@ func TestIdentifyUser(t *testing.T) {
 			})
 		})
 
-		Convey("When the Authorization header has an invalid service token", func() {
+		Convey("When the service token is not within the serviceAuthTokenMap, AccessTokenStore and there is no X-Florence-Token header", func() {
 			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
 			request.Header.Set("Authorization", "Bearer invalid-token")
 			responseRecorder := httptest.NewRecorder()
@@ -710,29 +787,6 @@ func TestIdentifyUser(t *testing.T) {
 
 			Convey("Then it should return 403 Forbidden", func() {
 				So(responseRecorder.Code, ShouldEqual, http.StatusForbidden)
-			})
-		})
-
-		Convey("When the Authorization header has an valid service token", func() {
-			request := httptest.NewRequest(http.MethodGet, "/identity", http.NoBody)
-
-			cfg, err := config.Get()
-			So(err, ShouldBeNil)
-
-			existingAuthToken := BearerPrefix + cfg.ZebedeeAuthToken
-
-			request.Header.Set("Authorization", existingAuthToken)
-			responseRecorder := httptest.NewRecorder()
-
-			handler.ServeHTTP(responseRecorder, request)
-
-			Convey("Then it should return 200 with expected JSON body", func() {
-				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
-
-				var response map[string]string
-				err := json.NewDecoder(responseRecorder.Body).Decode(&response)
-				So(err, ShouldBeNil)
-				So(response["identifier"], ShouldEqual, "zebedee")
 			})
 		})
 	})
