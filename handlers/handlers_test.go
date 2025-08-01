@@ -670,6 +670,10 @@ func TestTokenSelfPutHandler(t *testing.T) {
 				So(idToken, ShouldNotBeNil)
 				So(idToken.Value, ShouldNotBeEmpty)
 				So(idToken.HttpOnly, ShouldBeFalse)
+
+				Convey("And it should add the access_token into the accessTokenStore", func() {
+					So(models.AccessTokenStore[strings.TrimPrefix(accessToken.Value, BearerPrefix)], ShouldNotBeEmpty)
+				})
 			})
 
 			Convey("And it should pass the expiration date in the payload", func() {

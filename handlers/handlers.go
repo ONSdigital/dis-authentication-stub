@@ -309,6 +309,9 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
+		// Store new access token in the in-memory map
+		models.AccessTokenStore[strings.TrimPrefix(newAccessToken, BearerPrefix)] = user.Username
+
 		newIDToken, err := generateIDTokenJWT(store, user, cfg.IDTokenValidityDuration)
 		if err != nil {
 			log.Error(ctx, "failed to generate ID token JWT", err)
