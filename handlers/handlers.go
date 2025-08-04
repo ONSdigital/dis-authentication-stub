@@ -295,15 +295,18 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 			return
 		}
 
-		// Retrieve the user details from the in-memory map using the username
-		user := models.User{
-			Username: tokenInfo.Username,
+		// Retrieve the user by email
+		user, err := store.GetUser(tokenInfo.Username)
+		if err != nil {
+			log.Error(ctx, "failed to retrieve user from store", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
 		cfg, _ := config.Get()
 
 		// Generate new tokens
-		newAccessToken, err := generateAccessTokenJWT(store, user, cfg.AccessTokenValidityDuration)
+		newAccessToken, err := generateAccessTokenJWT(store, *user, cfg.AccessTokenValidityDuration)
 		if err != nil {
 			log.Error(ctx, "failed to generate access token JWT", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -312,7 +315,7 @@ func TokenSelfPutHandler(ctx context.Context, store static.Store) http.HandlerFu
 		// Store new access token in the in-memory map
 		models.AccessTokenStore[strings.TrimPrefix(newAccessToken, BearerPrefix)] = user.Username
 
-		newIDToken, err := generateIDTokenJWT(store, user, cfg.IDTokenValidityDuration)
+		newIDToken, err := generateIDTokenJWT(store, *user, cfg.IDTokenValidityDuration)
 		if err != nil {
 			log.Error(ctx, "failed to generate ID token JWT", err)
 			w.WriteHeader(http.StatusInternalServerError)

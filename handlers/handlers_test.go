@@ -584,6 +584,7 @@ func TestTokenSelfPutHandler(t *testing.T) {
 		mockStore := &mock.StoreMock{
 			GetPrivateKeyFunc: func() *rsa.PrivateKey { return mockKey },
 			GetKidsFunc:       func() []string { return []string{mockKID} },
+			GetUserFunc:       func(email string) (*models.User, error) { return &testUser, nil },
 		}
 
 		handler := TokenSelfPutHandler(ctx, mockStore)
