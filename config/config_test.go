@@ -45,6 +45,7 @@ func TestConfig(t *testing.T) {
 					UploadServiceAuthToken:       "upload-service-test-auth-token",
 					ZebedeeAuthToken:             "zebedee-test-auth-token",
 					WagtailAuthToken:             "wagtail-test-auth-token",
+					BundleSchedulerAuthToken:     "bundle-scheduler-test-auth-token",
 				})
 			})
 

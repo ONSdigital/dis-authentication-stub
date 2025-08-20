@@ -30,6 +30,7 @@ type Config struct {
 	UploadServiceAuthToken       string        `envconfig:"UPLOAD_SERVICE_AUTH_TOKEN"`
 	ZebedeeAuthToken             string        `envconfig:"ZEBEDEE_AUTH_TOKEN"`
 	WagtailAuthToken             string        `envconfig:"WAGTAIL_AUTH_TOKEN"`
+	BundleSchedulerAuthToken     string        `envconfig:"BUNDLE_SCHEDULER_AUTH_TOKEN"`
 }
 
 var cfg *Config
@@ -64,6 +65,7 @@ func Get() (*Config, error) {
 		UploadServiceAuthToken:       "upload-service-test-auth-token",
 		ZebedeeAuthToken:             "zebedee-test-auth-token",
 		WagtailAuthToken:             "wagtail-test-auth-token",
+		BundleSchedulerAuthToken:     "bundle-scheduler-test-auth-token",
 	}
 
 	return cfg, envconfig.Process("", cfg)

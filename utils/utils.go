@@ -13,5 +13,6 @@ func GetServiceAuthTokens(cfg config.Config) map[string]string {
 		cfg.UploadServiceAuthToken:       "dp-upload-service",
 		cfg.ZebedeeAuthToken:             "zebedee",
 		cfg.WagtailAuthToken:             "wagtail",
+		cfg.BundleSchedulerAuthToken:     "bundle-scheduler",
 	}
 }

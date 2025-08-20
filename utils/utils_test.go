@@ -25,6 +25,7 @@ func TestGetServiceAuthTokens(t *testing.T) {
 					cfg.UploadServiceAuthToken:       "dp-upload-service",
 					cfg.ZebedeeAuthToken:             "zebedee",
 					cfg.WagtailAuthToken:             "wagtail",
+					cfg.BundleSchedulerAuthToken:     "bundle-scheduler",
 				}
 				So(result, ShouldResemble, expected)
 			})
