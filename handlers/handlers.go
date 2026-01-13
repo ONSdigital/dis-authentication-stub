@@ -15,7 +15,7 @@ import (
 	"github.com/ONSdigital/dis-authentication-stub/static"
 
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/golang-jwt/jwt"
+	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 const (

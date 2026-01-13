@@ -16,8 +16,8 @@ LDFLAGS = -ldflags "-X main.BuildTime=$(BUILD_TIME) -X main.GitCommit=$(GIT_COMM
 all: delimiter-AUDIT audit delimiter-LINTERS lint delimiter-UNIT-TESTS test delimiter-COMPONENT_TESTS test-component delimiter-FINISH ## Runs multiple targets, audit, lint, test and test-component
 
 .PHONY: audit
-audit: ## Runs checks for security vulnerabilities on dependencies (including transient ones)
-	go list -json -m all | nancy sleuth
+audit:
+	dis-vulncheck
 
 .PHONY: build
 build: ## Builds binary of application code and stores in bin directory as dis-authentication-stub

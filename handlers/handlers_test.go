@@ -19,7 +19,7 @@ import (
 	"github.com/ONSdigital/dis-authentication-stub/models"
 	"github.com/ONSdigital/dis-authentication-stub/static/mock"
 	"github.com/ONSdigital/dis-authentication-stub/utils"
-	"github.com/golang-jwt/jwt"
+	jwt "github.com/golang-jwt/jwt/v4"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
