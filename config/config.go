@@ -27,6 +27,7 @@ type Config struct {
 	DownloadServiceAuthToken     string        `envconfig:"DOWNLOAD_SERVICE_AUTH_TOKEN"`
 	FilterAPIAuthToken           string        `envconfig:"FILTER_API_AUTH_TOKEN"`
 	StaticFilePublisherAuthToken string        `envconfig:"STATIC_FILE_PUBLISHER_AUTH_TOKEN"`
+	MigrationServiceAuthToken    string        `envconfig:"MIGRATION_SERVICE_AUTH_TOKEN"`
 	UploadServiceAuthToken       string        `envconfig:"UPLOAD_SERVICE_AUTH_TOKEN"`
 	ZebedeeAuthToken             string        `envconfig:"ZEBEDEE_AUTH_TOKEN"`
 	WagtailAuthToken             string        `envconfig:"WAGTAIL_AUTH_TOKEN"`
@@ -61,6 +62,7 @@ func Get() (*Config, error) {
 		DatasetAPIAuthToken:          "dataset-api-test-auth-token",
 		DownloadServiceAuthToken:     "download-service-test-auth-token",
 		FilterAPIAuthToken:           "filter-api-test-auth-token",
+		MigrationServiceAuthToken:    "migration-service-test-auth-token",
 		StaticFilePublisherAuthToken: "static-file-publisher-test-auth-token",
 		UploadServiceAuthToken:       "upload-service-test-auth-token",
 		ZebedeeAuthToken:             "zebedee-test-auth-token",

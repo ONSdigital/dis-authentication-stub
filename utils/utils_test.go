@@ -21,6 +21,7 @@ func TestGetServiceAuthTokens(t *testing.T) {
 					cfg.DatasetAPIAuthToken:          "dp-dataset-api",
 					cfg.DownloadServiceAuthToken:     "dp-download-service",
 					cfg.FilterAPIAuthToken:           "dp-filter-api",
+					cfg.MigrationServiceAuthToken:    "dis-migration-service",
 					cfg.StaticFilePublisherAuthToken: "dp-static-file-publisher",
 					cfg.UploadServiceAuthToken:       "dp-upload-service",
 					cfg.ZebedeeAuthToken:             "zebedee",

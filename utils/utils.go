@@ -10,6 +10,7 @@ func GetServiceAuthTokens(cfg config.Config) map[string]string {
 		cfg.DownloadServiceAuthToken:     "dp-download-service",
 		cfg.FilterAPIAuthToken:           "dp-filter-api",
 		cfg.StaticFilePublisherAuthToken: "dp-static-file-publisher",
+		cfg.MigrationServiceAuthToken:    "dis-migration-service",
 		cfg.UploadServiceAuthToken:       "dp-upload-service",
 		cfg.ZebedeeAuthToken:             "zebedee",
 		cfg.WagtailAuthToken:             "wagtail",
