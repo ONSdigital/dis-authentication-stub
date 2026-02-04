@@ -62,7 +62,7 @@ func Get() (*Config, error) {
 		DatasetAPIAuthToken:          "dataset-api-test-auth-token",
 		DownloadServiceAuthToken:     "download-service-test-auth-token",
 		FilterAPIAuthToken:           "filter-api-test-auth-token",
-		MigrationServiceAuthToken:    "migration-service-test-auth-token",
+		MigrationServiceAuthToken:    "migrationservicetestauthtoken",
 		StaticFilePublisherAuthToken: "static-file-publisher-test-auth-token",
 		UploadServiceAuthToken:       "upload-service-test-auth-token",
 		ZebedeeAuthToken:             "zebedee-test-auth-token",
