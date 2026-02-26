@@ -1,0 +1,47 @@
+{{ define "content" }}
+<p>You are now logged in as the following user:</p>
+<dl class="ons-description-list ons-description-list__items ons-grid ons-grid--gutterless ons-u-cf ons-u-mb-no"
+  title="Information about the logged in user"
+  aria-label="Information about the logged in user">
+  <div class="ons-description-list__item">
+    <dt class="ons-description-list__term ons-grid__col ons-col-2@m">Name: </dt>
+    <dd class="ons-description-list__value ons-grid__col ons-col-10@m">{{ .User.Forename }} {{ .User.Surname }}</dd>
+  </div>
+  <div class="ons-description-list__item">
+    <dt class="ons-description-list__term ons-grid__col ons-col-2@m">Username:</dt>
+    <dd class="ons-description-list__value ons-grid__col ons-col-10@m">{{ .User.Username }}</dd>
+  </div>
+  <div class="ons-description-list__item">
+    <dt class="ons-description-list__term ons-grid__col ons-col-2@m">Email: </dt>
+    <dd class="ons-description-list__value ons-grid__col ons-col-10@m">{{ .User.Email }}</dd>
+  </div>
+  <div class="ons-description-list__item">
+    <dt class="ons-description-list__term ons-grid__col ons-col-2@m">Groups: </dt>
+    {{ range $index, $group := .User.Groups }}
+    <dd class="ons-description-list__value ons-grid__col ons-col-10@m">{{ $group }}</dd>
+    {{ end }}
+  </div>
+  <div class="ons-description-list__item">
+    <dt class="ons-description-list__term ons-grid__col ons-col-2@m">Session expiry: </dt>
+    <dd class="ons-description-list__value ons-grid__col ons-col-10@m">{{ .User.Expiry }}</dd>
+  </div>
+</dl>
+<button class="ons-btn ons-btn--secondary ons-btn--download ons-u-mb-l ons-u-mt-xl" type="submit" onclick="copyAccessToken();">
+    <span class="ons-btn__inner">
+        <svg class="ons-icon ons-u-mr-2xs" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg" focusable="false" fill="currentColor" role="img" aria-hidden="true"><path d="M5.6 9a.48.48 0 0 0 .7 0l3-3.2a.48.48 0 0 0 0-.7C9.3 5 9.2 5 9 5H7.5V.5A.47.47 0 0 0 7 0H5a.47.47 0 0 0-.5.5V5H3a.47.47 0 0 0-.5.5.37.37 0 0 0 .1.3Z"></path><path d="M11.5 9H11a.47.47 0 0 0-.5.5v1h-9v-1A.47.47 0 0 0 1 9H.5a.47.47 0 0 0-.5.5v2a.47.47 0 0 0 .5.5h11a.47.47 0 0 0 .5-.5v-2a.47.47 0 0 0-.5-.5Z"></path></svg>
+        <span class="ons-btn__text">Copy access token to clipboard</span>
+    </span>
+</button>
+
+<script>
+    function copyAccessToken() {
+        const accessToken = "{{ .User.AccessToken }}";
+        navigator.clipboard.writeText(accessToken).then(function() {
+            alert('Access token copied to clipboard!');
+        }, function(err) {
+            alert('Failed to copy access token: ', err);
+        });
+    }
+</script>
+
+{{ end }}

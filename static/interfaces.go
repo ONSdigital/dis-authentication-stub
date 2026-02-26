@@ -15,6 +15,7 @@ type Store interface {
 	GetPrivateKey() *rsa.PrivateKey
 	GetPublicKey() *rsa.PublicKey
 	GetUser(email string) (*models.User, error)
+	GetCollectionTemplate() (*template.Template, error)
 	GetUserLoginTemplate() (*template.Template, error)
 	GetUsers() ([]models.User, error)
 }

@@ -83,6 +83,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	r.Path("/health").HandlerFunc(hc.Handler)
 
 	r.Path("/florence/login").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLoginHandler(ctx, store))
+	r.Path("/florence/collections").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceCollectionsHandler(ctx, store))
 	r.Path("/florence/login").Methods(http.MethodPost).HandlerFunc(handlers.FlorenceLoginHandlerPOST(ctx, store))
 	r.Path("/florence/logout").Methods(http.MethodGet).HandlerFunc(handlers.FlorenceLogoutHandler(ctx))
 

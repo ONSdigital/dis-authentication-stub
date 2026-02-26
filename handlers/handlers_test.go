@@ -82,7 +82,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 	Convey("Given a context, a mock Store that returns a user and a FlorenceLoginHandler", t, func() {
 		ctx := context.Background()
 		mockContent := "Hello World"
-		mockTemplate, err := template.New("foo").Parse(mockContent)
+		mockTemplate, err := template.New("page").Parse(mockContent)
 		So(err, ShouldBeNil)
 
 		mockStore := &mock.StoreMock{
@@ -119,7 +119,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 				RedirectURL: "/some/path",
 			}
 
-			mockTemplate, err := template.New("foo").Parse(tpl)
+			mockTemplate, err := template.New("page").Parse(tpl)
 			So(err, ShouldBeNil)
 
 			err = mockTemplate.Execute(os.Stdout, tplData)
@@ -147,7 +147,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 				RedirectURL: "/another/path",
 			}
 
-			mockTemplate, err := template.New("foo").Parse(tpl)
+			mockTemplate, err := template.New("page").Parse(tpl)
 			So(err, ShouldBeNil)
 
 			err = mockTemplate.Execute(os.Stdout, tplData)
@@ -175,7 +175,7 @@ func TestFlorenceLoginHandler(t *testing.T) {
 				RedirectURL: "",
 			}
 
-			mockTemplate, err := template.New("foo").Parse(tpl)
+			mockTemplate, err := template.New("page").Parse(tpl)
 			So(err, ShouldBeNil)
 
 			err = mockTemplate.Execute(os.Stdout, tplData)
@@ -195,6 +195,110 @@ func TestFlorenceLoginHandler(t *testing.T) {
 
 			Convey("And the redirect parameter should be empty", func() {
 				So(responseRecorder.Body.String(), ShouldBeEmpty)
+			})
+		})
+	})
+}
+
+func TestFlorenceCollectionsHandler(t *testing.T) {
+	Convey("Given a context and a FlorenceCollectionsHandler", t, func() {
+		ctx := context.Background()
+
+		buildIDToken := func() string {
+			claims := jwt.MapClaims{
+				"email":            "user@example.com",
+				"cognito:username": "user-123",
+				"exp":              time.Now().Add(time.Hour).Unix(),
+			}
+			idToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("secret"))
+			So(err, ShouldBeNil)
+			return idToken
+		}
+
+		Convey("When the id token cookie is missing", func() {
+			mockStore := &mock.StoreMock{}
+			handler := FlorenceCollectionsHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should redirect to /florence/login", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusSeeOther)
+				So(responseRecorder.Header().Get("Location"), ShouldEqual, "/florence/login")
+			})
+		})
+
+		Convey("When the id token cookie is invalid", func() {
+			mockStore := &mock.StoreMock{}
+			handler := FlorenceCollectionsHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
+			request.AddCookie(&http.Cookie{Name: models.IDTokenCookie, Value: "invalid-token"})
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should redirect to /florence/login", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusSeeOther)
+				So(responseRecorder.Header().Get("Location"), ShouldEqual, "/florence/login")
+			})
+		})
+
+		Convey("When the access token cookie is missing", func() {
+			mockStore := &mock.StoreMock{}
+			handler := FlorenceCollectionsHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
+			request.AddCookie(&http.Cookie{Name: models.IDTokenCookie, Value: buildIDToken()})
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should redirect to /florence/login", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusSeeOther)
+				So(responseRecorder.Header().Get("Location"), ShouldEqual, "/florence/login")
+			})
+		})
+
+		Convey("When the collection template fails to load", func() {
+			mockStore := &mock.StoreMock{
+				GetCollectionTemplateFunc: func() (*template.Template, error) {
+					return nil, errors.New("template error")
+				},
+			}
+			handler := FlorenceCollectionsHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
+			request.AddCookie(&http.Cookie{Name: models.IDTokenCookie, Value: buildIDToken()})
+			request.AddCookie(&http.Cookie{Name: models.AccessTokenCookie, Value: "Bearer access-token"})
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 500 Internal Server Error", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusInternalServerError)
+			})
+		})
+
+		Convey("When the collection page is requested with valid cookies", func() {
+			mockTemplate, err := template.New("page").Parse("{{.PageTitle}}|{{.User.Username}}|{{.User.AccessToken}}")
+			So(err, ShouldBeNil)
+
+			mockStore := &mock.StoreMock{
+				GetCollectionTemplateFunc: func() (*template.Template, error) { return mockTemplate, nil },
+			}
+			handler := FlorenceCollectionsHandler(ctx, mockStore)
+			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
+			request.AddCookie(&http.Cookie{Name: models.IDTokenCookie, Value: buildIDToken()})
+			request.AddCookie(&http.Cookie{Name: models.AccessTokenCookie, Value: "Bearer access-token"})
+			responseRecorder := httptest.NewRecorder()
+
+			handler.ServeHTTP(responseRecorder, request)
+
+			Convey("Then it should return 200 OK", func() {
+				So(responseRecorder.Code, ShouldEqual, http.StatusOK)
+			})
+
+			Convey("And it should render the expected user details", func() {
+				So(responseRecorder.Body.String(), ShouldEqual, "Logged in|user-123|Bearer access-token")
 			})
 		})
 	})
@@ -461,7 +565,7 @@ func TestTokenSelfGetHandler(t *testing.T) {
 		ctx := context.Background()
 
 		mockContent := "Delete world"
-		mockTemplate, err := template.New("foo").Parse(mockContent)
+		mockTemplate, err := template.New("page").Parse(mockContent)
 		So(err, ShouldBeNil)
 
 		mockStore := &mock.StoreMock{
@@ -471,7 +575,16 @@ func TestTokenSelfGetHandler(t *testing.T) {
 		handler := TokenSelfGetHandler(ctx, mockStore)
 
 		Convey("When the the tokens/self endpoint is requested", func() {
+			claims := jwt.MapClaims{
+				"email":            "user@example.com",
+				"cognito:username": "user-123",
+				"exp":              time.Now().Add(time.Hour).Unix(),
+			}
+			testIDToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("secret"))
+			So(err, ShouldBeNil)
+
 			request := httptest.NewRequest(http.MethodGet, tokensSelfEndpoint, http.NoBody)
+			request.AddCookie(&http.Cookie{Name: models.IDTokenCookie, Value: testIDToken})
 			responseRecorder := httptest.NewRecorder()
 
 			handler.ServeHTTP(responseRecorder, request)

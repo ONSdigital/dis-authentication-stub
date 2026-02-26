@@ -1,0 +1,27 @@
+{{ define "page" }}
+<!DOCTYPE html>
+<html lang="en" xml:lang="en">
+    <head>
+        <title>{{ .PageTitle }}</title>
+        <link rel="stylesheet" href="https://cdn.ons.gov.uk/sdc/design-system/73.1.1/css/main.css">
+    </head>
+    <body>
+        <div class="ons-page">
+            <div class="ons-page__content">
+                {{ template "header" . }}
+                <div class="ons-page__container ons-container">
+                    <div class="ons-grid">
+                        <div class="ons-grid__col ons-grid__col--12" style="min-height:600px">
+                            <div class="ons-page__main">
+                                <h1 class="ons-u-fs-xl">{{ .PageTitle }}</h1>
+                                {{ block "content" . }}{{ end }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {{ template "footer" . }}
+            </div>
+        </div>
+    </body>
+</html>
+{{ end }}

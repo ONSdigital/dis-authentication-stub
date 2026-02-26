@@ -21,6 +21,9 @@ var _ static.Store = &StoreMock{}
 //
 //		// make and configure a mocked static.Store
 //		mockedStore := &StoreMock{
+//			GetCollectionTemplateFunc: func() (*template.Template, error) {
+//				panic("mock out the GetCollectionTemplate method")
+//			},
 //			GetDeleteTokenTemplateFunc: func() (*template.Template, error) {
 //				panic("mock out the GetDeleteTokenTemplate method")
 //			},
@@ -52,6 +55,9 @@ var _ static.Store = &StoreMock{}
 //
 //	}
 type StoreMock struct {
+	// GetCollectionTemplateFunc mocks the GetCollectionTemplate method.
+	GetCollectionTemplateFunc func() (*template.Template, error)
+
 	// GetDeleteTokenTemplateFunc mocks the GetDeleteTokenTemplate method.
 	GetDeleteTokenTemplateFunc func() (*template.Template, error)
 
@@ -78,6 +84,9 @@ type StoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// GetCollectionTemplate holds details about calls to the GetCollectionTemplate method.
+		GetCollectionTemplate []struct {
+		}
 		// GetDeleteTokenTemplate holds details about calls to the GetDeleteTokenTemplate method.
 		GetDeleteTokenTemplate []struct {
 		}
@@ -105,6 +114,7 @@ type StoreMock struct {
 		GetUsers []struct {
 		}
 	}
+	lockGetCollectionTemplate  sync.RWMutex
 	lockGetDeleteTokenTemplate sync.RWMutex
 	lockGetJWKs                sync.RWMutex
 	lockGetKids                sync.RWMutex
@@ -113,6 +123,33 @@ type StoreMock struct {
 	lockGetUser                sync.RWMutex
 	lockGetUserLoginTemplate   sync.RWMutex
 	lockGetUsers               sync.RWMutex
+}
+
+// GetCollectionTemplate calls GetCollectionTemplateFunc.
+func (mock *StoreMock) GetCollectionTemplate() (*template.Template, error) {
+	if mock.GetCollectionTemplateFunc == nil {
+		panic("StoreMock.GetCollectionTemplateFunc: method is nil but Store.GetCollectionTemplate was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockGetCollectionTemplate.Lock()
+	mock.calls.GetCollectionTemplate = append(mock.calls.GetCollectionTemplate, callInfo)
+	mock.lockGetCollectionTemplate.Unlock()
+	return mock.GetCollectionTemplateFunc()
+}
+
+// GetCollectionTemplateCalls gets all the calls that were made to GetCollectionTemplate.
+// Check the length with:
+//
+//	len(mockedStore.GetCollectionTemplateCalls())
+func (mock *StoreMock) GetCollectionTemplateCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockGetCollectionTemplate.RLock()
+	calls = mock.calls.GetCollectionTemplate
+	mock.lockGetCollectionTemplate.RUnlock()
+	return calls
 }
 
 // GetDeleteTokenTemplate calls GetDeleteTokenTemplateFunc.

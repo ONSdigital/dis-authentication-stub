@@ -65,11 +65,58 @@ func FlorenceLoginHandler(ctx context.Context, store static.Store) http.HandlerF
 		}
 
 		var data = models.TemplateData{
+			PageTitle:   "Login",
 			Users:       users,
 			RedirectURL: redirectURL,
 		}
 
-		err = tmpl.Execute(w, data)
+		err = tmpl.ExecuteTemplate(w, "page", data)
+		if err != nil {
+			log.Error(ctx, "Could not apply template", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func FlorenceCollectionsHandler(ctx context.Context, store static.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		idTokenCookie, err := req.Cookie(models.IDTokenCookie)
+		if err != nil {
+			log.Error(ctx, "ID token cookie not found", err)
+			http.Redirect(w, req, "/florence/login", http.StatusSeeOther)
+			return
+		}
+
+		user, err := decodeIDTokenUser(idTokenCookie.Value)
+		if err != nil {
+			log.Error(ctx, "Could not decode ID token", err)
+			http.Redirect(w, req, "/florence/login", http.StatusSeeOther)
+			return
+		}
+
+		accessTokenCookie, err := req.Cookie(models.AccessTokenCookie)
+		if err != nil {
+			log.Error(ctx, "Access token cookie not found", err)
+			http.Redirect(w, req, "/florence/login", http.StatusSeeOther)
+			return
+		}
+
+		tmpl, err := store.GetCollectionTemplate()
+		if err != nil {
+			log.Error(ctx, "Could not parse template file", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		user.AccessToken = accessTokenCookie.Value
+
+		var data = models.TemplateData{
+			PageTitle: "Logged in",
+			User:      user,
+		}
+
+		err = tmpl.ExecuteTemplate(w, "page", data)
 		if err != nil {
 			log.Error(ctx, "Could not apply template", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -129,7 +176,7 @@ func FlorenceLoginHandlerPOST(ctx context.Context, store static.Store) http.Hand
 
 		idToken, err := generateIDTokenJWT(store, *user, cfg.IDTokenValidityDuration)
 		if err != nil {
-			log.Error(ctx, "Failed to generate access token JWT", err)
+			log.Error(ctx, "Failed to generate ID token JWT", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -221,7 +268,21 @@ func createExpiryTime(validity time.Duration) time.Time {
 }
 
 func TokenSelfGetHandler(ctx context.Context, store static.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
+		idTokenCookie, err := req.Cookie(models.IDTokenCookie)
+		if err != nil {
+			log.Error(ctx, "ID token cookie not found", err)
+			http.Redirect(w, req, "/florence/login", http.StatusSeeOther)
+			return
+		}
+
+		user, err := decodeIDTokenUser(idTokenCookie.Value)
+		if err != nil {
+			log.Error(ctx, "Could not decode ID token", err)
+			http.Redirect(w, req, "/florence/login", http.StatusSeeOther)
+			return
+		}
+
 		// Load the HTML template
 		tmpl, err := store.GetDeleteTokenTemplate()
 		if err != nil {
@@ -230,9 +291,14 @@ func TokenSelfGetHandler(ctx context.Context, store static.Store) http.HandlerFu
 			return
 		}
 
+		data := models.TemplateData{
+			PageTitle: "Session Management",
+			User:      user,
+		}
+
 		// Execute the template and write to response
 		w.Header().Set("Content-Type", "text/html")
-		if err := tmpl.Execute(w, nil); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "page", data); err != nil {
 			log.Error(ctx, "Failed to render template", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -437,4 +503,67 @@ func setIDTokenCookie(w http.ResponseWriter, token string) {
 		Value: token,
 		Path:  "/",
 	})
+}
+
+func decodeIDTokenUser(idToken string) (*models.User, error) {
+	if idToken == "" {
+		return nil, fmt.Errorf("id token is empty")
+	}
+
+	tokenString := strings.TrimPrefix(idToken, BearerPrefix)
+
+	// It is acceptable to parse unverified here as this is just a stub system.
+	parsedToken, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse id token: %w", err)
+	}
+
+	claims, ok := parsedToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("id token claims are not a map")
+	}
+
+	email, _ := claims["email"].(string)
+	forename, _ := claims["given_name"].(string)
+	surname, _ := claims["family_name"].(string)
+	username, _ := claims["cognito:username"].(string)
+	if username == "" {
+		username, _ = claims["username"].(string)
+	}
+
+	var groups []string
+	switch v := claims["cognito:groups"].(type) {
+	case []string:
+		groups = append(groups, v...)
+	case []interface{}:
+		for _, g := range v {
+			if s, ok := g.(string); ok {
+				groups = append(groups, s)
+			}
+		}
+	case string:
+		groups = append(groups, v)
+	}
+
+	expClaim, ok := claims["exp"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("id token missing exp claim")
+	}
+
+	if time.Now().Unix() >= int64(expClaim) {
+		return nil, fmt.Errorf("id token is expired")
+	}
+
+	if email == "" && forename == "" && surname == "" && len(groups) == 0 {
+		return nil, fmt.Errorf("id token missing expected user claims")
+	}
+
+	return &models.User{
+		Email:    email,
+		Username: username,
+		Forename: forename,
+		Surname:  surname,
+		Groups:   groups,
+		Expiry:   time.Unix(int64(expClaim), 0).Format("15:04 02-01-2006"),
+	}, nil
 }

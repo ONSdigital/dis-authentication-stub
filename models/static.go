@@ -1,7 +1,9 @@
 package models
 
 type TemplateData struct {
+	PageTitle   string
 	Users       []User
+	User        *User
 	RedirectURL string
 }
 

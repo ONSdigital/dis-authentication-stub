@@ -1,0 +1,47 @@
+{{ define "content" }}
+<form action="/florence/login" method="post">
+    <div class="ons-question ons-u-mb-xl ons-u-mt-no">
+        <div class="ons-question__answer ons-u-mb-l">
+            <fieldset class="ons-fieldset">
+                <legend class="ons-fieldset__legend ons-u-mb-no">
+                    <span id="fieldset-legend-title" class="ons-fieldset__legend-title">Please select a user to login</span>
+                </legend>
+                <div class="ons-input-items">
+                    <div class="ons-radios__items">
+                        {{ range .Users }}
+                        <span class="ons-radios__item">
+                            <span class="ons-radio">
+                                <input type="radio"
+                                        class="ons-radio__input ons-js-radio"
+                                        id="user{{.Username}}"
+                                        name="username"
+                                        value="{{.Email}}">
+                                <label class=" ons-radio__label" for="user{{.Username}}">{{.Forename}} {{.Surname}} ({{.Email}})</label>
+                            </span>
+                        </span>
+                        <br />
+                        {{ end }}
+                        <span class="ons-radios__item">
+                            <span class="ons-radio">
+                                <input type="radio"
+                                        id="invalid_username"
+                                        class="ons-radio__input ons-js-radio"
+                                        name="username"
+                                        value="Invalid@ons.gov.uk">
+                                <label class=" ons-radio__label" for="invalid_username">Invalid User (Invalid@ons.gov.uk)</label>
+                            </span>
+                        </span>
+                        <br />
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+        <input type="hidden" id="redirect" name="redirect" value="{{.RedirectURL}}" />
+        <button class="ons-btn ons-u-mb-l ons-u-mt-xl" type="submit">
+            <span class="ons-btn__inner">
+                <span class="ons-btn__text">Login</span>
+            </span>
+        </button>
+    </div>
+</form>
+{{ end }}
