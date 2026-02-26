@@ -204,13 +204,16 @@ func TestFlorenceCollectionsHandler(t *testing.T) {
 	Convey("Given a context and a FlorenceCollectionsHandler", t, func() {
 		ctx := context.Background()
 
+		mockKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		So(err, ShouldBeNil)
+
 		buildIDToken := func() string {
 			claims := jwt.MapClaims{
 				"email":            "user@example.com",
 				"cognito:username": "user-123",
 				"exp":              time.Now().Add(time.Hour).Unix(),
 			}
-			idToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("secret"))
+			idToken, err := jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(mockKey)
 			So(err, ShouldBeNil)
 			return idToken
 		}
@@ -230,7 +233,9 @@ func TestFlorenceCollectionsHandler(t *testing.T) {
 		})
 
 		Convey("When the id token cookie is invalid", func() {
-			mockStore := &mock.StoreMock{}
+			mockStore := &mock.StoreMock{
+				GetPublicKeyFunc: func() *rsa.PublicKey { return &mockKey.PublicKey },
+			}
 			handler := FlorenceCollectionsHandler(ctx, mockStore)
 			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
 			request.AddCookie(&http.Cookie{Name: models.IDTokenCookie, Value: "invalid-token"})
@@ -245,7 +250,9 @@ func TestFlorenceCollectionsHandler(t *testing.T) {
 		})
 
 		Convey("When the access token cookie is missing", func() {
-			mockStore := &mock.StoreMock{}
+			mockStore := &mock.StoreMock{
+				GetPublicKeyFunc: func() *rsa.PublicKey { return &mockKey.PublicKey },
+			}
 			handler := FlorenceCollectionsHandler(ctx, mockStore)
 			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
 			request.AddCookie(&http.Cookie{Name: models.IDTokenCookie, Value: buildIDToken()})
@@ -264,6 +271,7 @@ func TestFlorenceCollectionsHandler(t *testing.T) {
 				GetCollectionTemplateFunc: func() (*template.Template, error) {
 					return nil, errors.New("template error")
 				},
+				GetPublicKeyFunc: func() *rsa.PublicKey { return &mockKey.PublicKey },
 			}
 			handler := FlorenceCollectionsHandler(ctx, mockStore)
 			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
@@ -284,6 +292,7 @@ func TestFlorenceCollectionsHandler(t *testing.T) {
 
 			mockStore := &mock.StoreMock{
 				GetCollectionTemplateFunc: func() (*template.Template, error) { return mockTemplate, nil },
+				GetPublicKeyFunc:          func() *rsa.PublicKey { return &mockKey.PublicKey },
 			}
 			handler := FlorenceCollectionsHandler(ctx, mockStore)
 			request := httptest.NewRequest(http.MethodGet, florenceCollectionsURL, http.NoBody)
@@ -564,12 +573,16 @@ func TestTokenSelfGetHandler(t *testing.T) {
 	Convey("Given a context, a mock store and a TokenSelfGetHandler", t, func() {
 		ctx := context.Background()
 
+		mockKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		So(err, ShouldBeNil)
+
 		mockContent := "Delete world"
 		mockTemplate, err := template.New("page").Parse(mockContent)
 		So(err, ShouldBeNil)
 
 		mockStore := &mock.StoreMock{
 			GetDeleteTokenTemplateFunc: func() (*template.Template, error) { return mockTemplate, nil },
+			GetPublicKeyFunc:           func() *rsa.PublicKey { return &mockKey.PublicKey },
 		}
 
 		handler := TokenSelfGetHandler(ctx, mockStore)
@@ -580,7 +593,7 @@ func TestTokenSelfGetHandler(t *testing.T) {
 				"cognito:username": "user-123",
 				"exp":              time.Now().Add(time.Hour).Unix(),
 			}
-			testIDToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("secret"))
+			testIDToken, err := jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(mockKey)
 			So(err, ShouldBeNil)
 
 			request := httptest.NewRequest(http.MethodGet, tokensSelfEndpoint, http.NoBody)

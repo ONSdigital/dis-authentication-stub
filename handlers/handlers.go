@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -88,7 +89,7 @@ func FlorenceCollectionsHandler(ctx context.Context, store static.Store) http.Ha
 			return
 		}
 
-		user, err := decodeIDTokenUser(idTokenCookie.Value)
+		user, err := decodeIDTokenUser(idTokenCookie.Value, store.GetPublicKey())
 		if err != nil {
 			log.Error(ctx, "Could not decode ID token", err)
 			http.Redirect(w, req, "/florence/login", http.StatusSeeOther)
@@ -276,7 +277,7 @@ func TokenSelfGetHandler(ctx context.Context, store static.Store) http.HandlerFu
 			return
 		}
 
-		user, err := decodeIDTokenUser(idTokenCookie.Value)
+		user, err := decodeIDTokenUser(idTokenCookie.Value, store.GetPublicKey())
 		if err != nil {
 			log.Error(ctx, "Could not decode ID token", err)
 			http.Redirect(w, req, "/florence/login", http.StatusSeeOther)
@@ -505,17 +506,27 @@ func setIDTokenCookie(w http.ResponseWriter, token string) {
 	})
 }
 
-func decodeIDTokenUser(idToken string) (*models.User, error) {
+func decodeIDTokenUser(idToken string, publicKey *rsa.PublicKey) (*models.User, error) {
 	if idToken == "" {
 		return nil, fmt.Errorf("id token is empty")
+	}
+	if publicKey == nil {
+		return nil, fmt.Errorf("public key is nil")
 	}
 
 	tokenString := strings.TrimPrefix(idToken, BearerPrefix)
 
-	// It is acceptable to parse unverified here as this is just a stub system.
-	parsedToken, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	parsedToken, err := jwt.ParseWithClaims(tokenString, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return publicKey, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse id token: %w", err)
+		return nil, fmt.Errorf("failed to verify id token: %w", err)
+	}
+	if parsedToken == nil || !parsedToken.Valid {
+		return nil, fmt.Errorf("id token is invalid")
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
