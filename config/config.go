@@ -43,6 +43,7 @@ func Get() (*Config, error) {
 		return cfg, nil
 	}
 
+	//nolint:gosec // These are test tokens, not real secrets
 	cfg = &Config{
 		APIVersions:                  []string{"", "v1"},
 		BindAddr:                     "localhost:29500",
